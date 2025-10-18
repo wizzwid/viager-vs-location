@@ -1,3 +1,6 @@
+import React, { useState, useEffect } from "react";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
+
 /*********************
  * UTILITAIRES
  *********************/
@@ -144,9 +147,32 @@ function Viager() {
   );
 }
 
-/*********************
+*********************
  * APP PRINCIPALE
  *********************/
 export default function App() {
-// ... (Reste inchangé)
+  const [tab, setTab] = useState("Location nue");
+  useEffect(() => {
+    document.title = `Simulateur ${tab} – Viager & Location`;
+  }, [tab]);
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+      <div className="max-w-5xl mx-auto p-6 space-y-6">
+        <header className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold">Simulateur Viager & Location</h1>
+            <p className="text-sm text-gray-500">Comparateur interactif avec graphiques et légendes</p>
+          </div>
+          <Tabs tabs={["Location nue", "Viager"]} active={tab} onChange={setTab} />
+        </header>
+
+        {tab === "Location nue" ? <LocationNue /> : <Viager />}
+
+        <footer className="text-xs text-gray-400 text-center">
+          Données indicatives — calculs simplifiés. Version avec graphiques Recharts et légendes.
+        </footer>
+      </div>
+    </div>
+  );
 }
