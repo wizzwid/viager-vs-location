@@ -18,19 +18,33 @@ const printStyles = `
 /*********************
  * UTILITAIRES GÉNÉRAUX
  *********************/
-// Formatage en monétaire français (ex: 123 456,78). Par défaut, deux décimales sont forcées.
+// Formatage en monétaire français (ex: 123 456,78). Deux décimales sont forcées pour les montants.
 const fmt = (n: number, d = 2) =>
   isFinite(n) ? n.toLocaleString("fr-FR", { maximumFractionDigits: d, minimumFractionDigits: d }) : "—";
   
 /**
- * Conversion de la saisie : retire les séparateurs de milliers FR (espaces, points) 
- * et gère la virgule décimale.
+ * Conversion de la saisie : gère les formats de nombres français (virgule décimale, espaces et points de milliers).
+ * * LOGIQUE CORRIGÉE :
+ * 1. Retirer les espaces (pour les milliers : 300 000).
+ * 2. Retirer les points (.) s'ils sont des séparateurs de milliers (ex: 300.000), mais les conserver pour les décimales si une virgule est déjà utilisée.
+ * 3. Remplacer la virgule (,) par un point (.) pour la décimale.
  */
 const toNum = (v: string) => {
-  let s = (v || "").toString();
-  s = s.replace(/\s/g, ""); // Retire les espaces (ex: 300 000 -> 300000)
-  s = s.replace(/\./g, ""); // Retire les points (ex: 300.000 -> 300000)
-  s = s.replace(",", ".");  // Remplace la virgule par un point (ex: 300,50 -> 300.50)
+  let s = (v || "").toString().trim();
+  
+  // 1. Retirer les espaces
+  s = s.replace(/\s/g, "");
+
+  // 2. Gérer les décimales et séparateurs :
+  // Si le nombre contient une virgule, on la traite comme séparateur décimal et on ignore les points.
+  if (s.includes(",")) {
+    // Retirer les points qui sont probablement des séparateurs de milliers (ex: 300.000,50)
+    s = s.replace(/\./g, ""); 
+    // Remplacer la virgule décimale par un point (ex: 300000,50 -> 300000.50)
+    s = s.replace(",", ".");
+  }
+  // Si le nombre ne contient PAS de virgule, on laisse le point comme séparateur décimal (format anglo-saxon).
+  
   return Number(s) || 0;
 };
 
@@ -269,8 +283,8 @@ const COLORS = ["#3559E0", "#F2C94C", "#E67E22", "#27AE60"];
 function LocationNue() {
   const [prix, setPrix] = useState("292000");
   const [apport, setApport] = useState("72000");
-  const [taux, setTaux] = useState("2.5");
-  const [assurance, setAssurance] = useState("0.35");
+  const [taux, setTaux] = useState("2,5"); // Utilisation de la virgule pour la saisie française
+  const [assurance, setAssurance] = useState("0,35");
   const [duree, setDuree] = useState("20");
   const [loyer, setLoyer] = useState("740");
   const [charges, setCharges] = useState("1200");
@@ -414,7 +428,7 @@ function Viager() {
   const [loyer, setLoyer] = useState("740"); // Loyer mensuel estimé
   const [taux, setTaux] = useState("2"); // Taux d'actualisation (DUH et rente)
   const [bouquetPct, setBouquetPct] = useState("30"); // Bouquet en % de la Valeur Occupée
-  const [index, setIndex] = useState("1.1"); // Taux de révision de la rente
+  const [index, setIndex] = useState("1,1"); // Taux de révision de la rente
   // Nouveaux champs pour le débirentier
   const [charges, setCharges] = useState("1200");
   const [taxe, setTaxe] = useState("1300");
