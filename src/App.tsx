@@ -21,8 +21,18 @@ const printStyles = `
 // Formatage en monétaire français (ex: 123 456)
 const fmt = (n: number, d = 0) =>
   isFinite(n) ? n.toLocaleString("fr-FR", { maximumFractionDigits: d }) : "—";
-// Conversion de la saisie (retire les espaces/virgules)
-const toNum = (v: string) => Number((v || "").toString().replace(/\s/g, "").replace(",", ".")) || 0;
+  
+/**
+ * Conversion de la saisie : retire les séparateurs de milliers FR (espaces, points) 
+ * et gère la virgule décimale (correction demandée pour plus de robustesse FR).
+ */
+const toNum = (v: string) => {
+  let s = (v || "").toString();
+  s = s.replace(/\s/g, ""); // Retire les espaces (ex: 300 000 -> 300000)
+  s = s.replace(/\./g, ""); // Retire les points (ex: 300.000 -> 300000)
+  s = s.replace(",", ".");  // Remplace la virgule par un point (ex: 300,50 -> 300.50)
+  return Number(s) || 0;
+};
 
 /**
  * Estimation simplifiée des frais de notaire (environ 7.5% du prix dans l'ancien, tous frais compris)
@@ -100,6 +110,7 @@ function Tabs({ tabs, active, onChange }: { tabs: string[]; active: string; onCh
 }
 
 function Legend({ data, colors }: { data: { name: string; value: number }[]; colors: string[] }) {
+  const total = data.reduce((sum, item) => sum + item.value, 0);
   return (
     <div className="flex flex-wrap justify-center gap-2 mt-3 text-xs">
       {data.map((item, i) => (
@@ -109,6 +120,7 @@ function Legend({ data, colors }: { data: { name: string; value: number }[]; col
           <span className="text-gray-400">({fmt(item.value)}€)</span>
         </div>
       ))}
+      <div className="font-bold text-gray-800 ml-4">Total: {fmt(total)} €</div>
     </div>
   );
 }
@@ -126,25 +138,39 @@ function DonutWithTotal({
 }) {
   const total = data.reduce((sum, item) => sum + item.value, 0);
 
+  // Filtre les données dont la valeur est > 0 pour le graphique
+  const displayData = data.filter(item => item.value > 0);
+  if (displayData.length === 0) {
+    displayData.push({ name: "Aucune donnée", value: 1 }); // Afficher un cercle vide
+  }
+
   return (
     <div className="flex flex-col items-center">
       <div className="h-56 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
-            <Pie dataKey="value" data={data} innerRadius={50} outerRadius={80} paddingAngle={2}>
-              {data.map((_, i) => (
+            <Pie 
+              dataKey="value" 
+              data={displayData} 
+              innerRadius={50} 
+              outerRadius={80} 
+              paddingAngle={2}
+              // Si pas de données, dessine un cercle gris
+              fill={displayData.length === 1 && displayData[0].name === "Aucune donnée" ? "#ccc" : undefined}
+            >
+              {displayData.map((_, i) => (
                 <Cell key={i} fill={colors[i % colors.length]} />
               ))}
             </Pie>
-            <Tooltip formatter={(v: number) => `${fmt(v)} €`} />
+            <Tooltip formatter={(v: number, n, props) => [`${fmt(v)} €`, props.payload.name]} />
           </PieChart>
         </ResponsiveContainer>
       </div>
       <div className="text-center text-sm font-medium mt-2">
         {title}
-        <div className="text-lg font-bold text-gray-800">{totalTitle}: {fmt(total)} €</div>
       </div>
-      <Legend data={data} colors={colors} />
+      <div className="text-lg font-bold text-gray-800">{totalTitle}: {fmt(total)} €</div>
+      <Legend data={data} colors={COLORS} />
     </div>
   );
 }
@@ -155,12 +181,20 @@ function DonutWithTotal({
  *********************/
 
 /**
- * Calcule le versement mensuel constant pour un prêt amortissable.
+ * Calcule le versement mensuel constant pour un prêt amortissable (correction pour taux 0%).
  */
 function annuityPayment(capital: number, ratePct: number, years: number) {
-  const r = ratePct / 100 / 12;
-  const n = Math.round(years * 12);
-  if (r === 0 || n === 0) return 0;
+  const r = ratePct / 100 / 12; // Taux mensuel
+  const n = Math.round(years * 12); // Nombre de mois
+  
+  if (n === 0 || capital === 0) return 0; 
+
+  if (r === 0) {
+    // Taux 0% : remboursement linéaire du capital
+    return capital / n;
+  }
+  
+  // Cas standard (formule de l'annuité)
   return (capital * r) / (1 - Math.pow(1 + r, -n));
 }
 
@@ -227,6 +261,8 @@ function getEsperanceVie(age: number, sexe: string) {
   return 0;
 }
 
+const COLORS = ["#3559E0", "#F2C94C", "#E67E22", "#27AE60"];
+
 /*********************
  * COMPOSANT LOCATION NUE
  *********************/
@@ -246,15 +282,26 @@ function LocationNue() {
   const vAssurance = toNum(assurance);
   const vDuree = toNum(duree);
   
-  const capital = vPrix - vApport;
+  // Sécurité numérique : le capital emprunté ne peut être négatif
+  const capital = Math.max(0, vPrix - vApport); 
+
+  // Calcul du prêt (mensualité SANS assurance)
   const mensualite = annuityPayment(capital, vTaux, vDuree);
+  
+  // Calcul de l'assurance
   const assuranceMens = (capital * (vAssurance / 100)) / 12;
+  
+  // Mensualité totale (capital + intérêt + assurance)
   const totalRemboursementMensuel = mensualite + assuranceMens;
 
   // Calculs totaux
   const nbMois = vDuree * 12;
-  const totalRembourse = totalRemboursementMensuel * nbMois;
-  const coutTotalInterets = totalRembourse - capital;
+  
+  // CORRECTION : Intérêts totaux (Basé sur la mensualité HORS assurance)
+  const totalRembourseCapitalAndInterest = mensualite * nbMois;
+  const coutTotalInterets = Math.max(0, totalRembourseCapitalAndInterest - capital); // Le surplus est l'intérêt
+  
+  // Coût total de l'assurance
   const coutTotalAssurance = assuranceMens * nbMois;
   
   // Frais de notaire (basé sur le prix du bien)
@@ -263,7 +310,7 @@ function LocationNue() {
   const totalChargeMens = (toNum(charges) + toNum(taxe)) / 12 + totalRemboursementMensuel;
   const cashflowMens = toNum(loyer) - totalChargeMens;
 
-  // Donut 1 : Coût initial (pour les totaux)
+  // Donut 1 : Coût initial 
   const donutCout = [
     { name: "Apport", value: vApport },
     { name: "Capital prêt", value: capital },
@@ -272,13 +319,17 @@ function LocationNue() {
   
   // Donut 2 : Charges récurrentes mensuelles
   const donutCharge = [
-    { name: "Mensualité Prêt", value: mensualite },
+    { name: "Mensualité Prêt (C+I)", value: mensualite },
     { name: "Assurance Emprunteur", value: assuranceMens },
     { name: "Taxe foncière (mens.)", value: toNum(taxe) / 12 },
     { name: "Charges (mens.)", value: toNum(charges) / 12 },
   ];
 
-  const COLORS = ["#3559E0", "#F2C94C", "#E67E22", "#27AE60"];
+  // Donut 3 : Coût total de l'emprunt (sur la durée)
+  const donutCoutEmprunt = [
+    { name: "Intérêts du prêt", value: coutTotalInterets },
+    { name: "Coût total assurance", value: coutTotalAssurance },
+  ];
 
   return (
     <div className="grid lg:grid-cols-2 gap-6">
@@ -301,7 +352,7 @@ function LocationNue() {
         {/* Résultat 1: Cashflow */}
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div className="bg-gray-50 p-3 rounded-xl">
-            <div className="text-gray-500">Remboursement mensuel</div>
+            <div className="text-gray-500">Remboursement mensuel total</div>
             <div className="font-semibold">{fmt(totalRemboursementMensuel)} €/mois</div>
           </div>
           <div className="bg-gray-50 p-3 rounded-xl">
@@ -312,7 +363,7 @@ function LocationNue() {
 
         {/* Résultat 2: Coûts totaux du prêt */}
         <div className="bg-gray-50 p-3 rounded-xl text-sm mt-3">
-          <div className="text-gray-700 font-semibold mb-1">Coût total sur {vDuree} ans</div>
+          <div className="text-gray-700 font-semibold mb-1">Détail du Coût de l'emprunt sur {vDuree} ans</div>
           <div className="flex justify-between">
             <span className="text-gray-500">Intérêts du prêt :</span>
             <span className="font-medium text-red-700">{fmt(coutTotalInterets)} €</span>
@@ -322,13 +373,13 @@ function LocationNue() {
             <span className="font-medium">{fmt(coutTotalAssurance)} €</span>
           </div>
           <div className="flex justify-between mt-1 pt-1 border-t border-gray-200">
-            <span className="font-bold">Total Emprunt & Assurance :</span>
+            <span className="font-bold">Coût total de l'emprunt (Intérêts + Assurance) :</span>
             <span className="font-bold text-red-700">{fmt(coutTotalInterets + coutTotalAssurance)} €</span>
           </div>
         </div>
         
         {/* Graphiques */}
-        <div className="grid md:grid-cols-2 gap-6 mt-4">
+        <div className="grid md:grid-cols-3 gap-6 mt-4">
           <DonutWithTotal
             data={donutCout}
             colors={COLORS}
@@ -338,8 +389,14 @@ function LocationNue() {
           <DonutWithTotal
             data={donutCharge}
             colors={COLORS.slice(2)}
-            title="Dépenses récurrentes mensuelles"
+            title="Dépenses récurrentes (mensuelles)"
             totalTitle="Total mensuel"
+          />
+          <DonutWithTotal
+            data={donutCoutEmprunt}
+            colors={["#E67E22", "#27AE60"]}
+            title="Coût total de l'emprunt (sur la durée)"
+            totalTitle="Total Emprunt"
           />
         </div>
       </Section>
@@ -376,8 +433,8 @@ function Viager() {
   // 2. Calcul de la Valeur du Droit d'Usage et d'Habitation (DUH)
   const valeurDUH = presentValueAnnuity(vLoyer, years, vTaux);
   
-  // 3. Calcul de la Valeur Occupée
-  const valeurOccupee = vV - valeurDUH;
+  // 3. Calcul de la Valeur Occupée (sécurité numérique)
+  const valeurOccupee = Math.max(0, vV - valeurDUH);
 
   // 4. Décote en pourcentage (pour l'affichage)
   const decotePct = isFinite(valeurDUH / vV) ? (valeurDUH / vV) * 100 : 0;
@@ -390,11 +447,14 @@ function Viager() {
   // 6. Calcul de la Rente Mensuelle
   const renteMensuelle = solveMonthlyFromPV(capRente, years, vTaux, toNum(index));
 
-  // 7. Calcul des frais de notaire sur la valeur occupée (ou valeur nue)
+  // 7. Calcul des frais de notaire sur la valeur occupée
   const fraisNotaire = calculateNotaryFees(valeurOccupee);
   
   // Coût total de la rente sur l'espérance de vie (non actualisé, pour information)
   const coutTotalRente = renteMensuelle * years * 12;
+
+  // Coûts mensuels pour le débirentier
+  const coutMensuelDebirentier = renteMensuelle + (vCharges + vTaxe) / 12;
 
   // Données pour les graphiques
   const donutCoutTotal = [
@@ -404,7 +464,11 @@ function Viager() {
     { name: "Frais de notaire", value: fraisNotaire },
   ];
   
-  const COLORS = ["#3559E0", "#F2994A", "#F2C94C", "#E67E22"];
+  const donutCoutMensuels = [
+    { name: "Rente mensuelle", value: renteMensuelle },
+    { name: "Charges (mens.)", value: vCharges / 12 },
+    { name: "Taxe foncière (mens.)", value: vTaxe / 12 },
+  ];
 
   return (
     <div className="grid lg:grid-cols-2 gap-6">
@@ -474,26 +538,32 @@ function Viager() {
             <span className="font-medium text-red-700">{fmt(renteMensuelle)} €/mois</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-500">Charges + Taxes Foncières :</span>
+            <span className="text-gray-500">Charges + Taxes Foncières (mensuelles) :</span>
             <span className="font-medium">{fmt((vCharges + vTaxe) / 12)} €/mois</span>
           </div>
           <div className="flex justify-between mt-1 pt-1 border-t border-gray-200">
-            <span className="font-bold">Total mensuel :</span>
-            <span className="font-bold text-red-700">{fmt(renteMensuelle + (vCharges + vTaxe) / 12)} €/mois</span>
+            <span className="font-bold">Total mensuel débirentier :</span>
+            <span className="font-bold text-red-700">{fmt(coutMensuelDebirentier)} €/mois</span>
           </div>
         </div>
 
         {/* Graphique */}
-        <div className="mt-4">
+        <div className="grid md:grid-cols-2 gap-6 mt-4">
           <DonutWithTotal
             data={donutCoutTotal}
             colors={COLORS}
             title="Répartition de la Valeur Vénale"
-            totalTitle="Valeur Vénale + Frais"
+            totalTitle="Total Vénale + Frais"
           />
-          <div className="text-center text-xs text-gray-500 mt-4">
-            Coût total estimé de la rente sur {years.toFixed(1)} ans: {fmt(coutTotalRente)} €
-          </div>
+          <DonutWithTotal
+            data={donutCoutMensuels}
+            colors={COLORS.slice(1)}
+            title="Dépenses récurrentes (mensuelles)"
+            totalTitle="Total mensuel"
+          />
+        </div>
+        <div className="text-center text-xs text-gray-500 mt-4">
+            Coût total estimé de la rente (non actualisé) sur {years.toFixed(1)} ans: {fmt(coutTotalRente)} €
         </div>
       </Section>
     </div>
@@ -504,7 +574,7 @@ function Viager() {
  * APP PRINCIPALE
  *********************/
 export default function App() {
-  const [tab, setTab] = useState("Viager"); // Viager est souvent le plus intéressant à voir en premier
+  const [tab, setTab] = useState("Viager"); 
 
   useEffect(() => {
     document.title = `Simulateur ${tab} – Viager & Location`;
@@ -520,7 +590,7 @@ export default function App() {
       <style>{printStyles}</style>
 
       <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
-        <div className="max-w-5xl mx-auto p-6 space-y-6 print-max-w">
+        <div className="max-w-6xl mx-auto p-6 space-y-6 print-max-w">
           <header className="flex justify-between items-center no-print">
             <div>
               <h1 className="text-2xl font-bold">Simulateur Viager & Location</h1>
@@ -529,10 +599,10 @@ export default function App() {
             <div className="flex items-center gap-3">
               <button
                 onClick={handlePrint}
-                className="px-4 py-2 rounded-xl text-sm font-medium bg-gray-200 text-gray-700 hover:bg-gray-300 transition shadow"
+                className="px-4 py-2 rounded-xl text-sm font-medium bg-gray-200 text-gray-700 hover:bg-gray-300 transition shadow flex items-center"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 inline-block mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12M18 14v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4"/></svg>
-                Version Imprimable
+                Version Imprimable PDF
               </button>
               <Tabs tabs={["Location nue", "Viager"]} active={tab} onChange={setTab} />
             </div>
