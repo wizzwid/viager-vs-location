@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 
-// Configuration pour l'impression
+// Configuration pour l'impression (améliore l'apparence du PDF généré par le navigateur)
 const printStyles = `
   @media print {
     /* Cache les éléments non essentiels */
@@ -12,22 +12,23 @@ const printStyles = `
     .bg-gradient-to-b { background: #fff !important; }
     .shadow { box-shadow: none !important; border: 1px solid #ccc; }
     .bg-gray-50, .bg-gray-100 { background-color: #f8f8f8 !important; }
+    /* Assure une meilleure lisibilité */
+    body { font-size: 10pt; }
   }
 `;
 
 /*********************
  * UTILITAIRES GÉNÉRAUX
  *********************/
+// Couleurs pour les graphiques (visuellement distinctes)
+const COLORS = ["#3559E0", "#F2C94C", "#E67E22", "#27AE60"];
+
 // Formatage en monétaire français (ex: 123 456,78). Deux décimales sont forcées pour les montants.
 const fmt = (n: number, d = 2) =>
   isFinite(n) ? n.toLocaleString("fr-FR", { maximumFractionDigits: d, minimumFractionDigits: d }) : "—";
   
 /**
  * Conversion de la saisie : gère les formats de nombres français (virgule décimale, espaces et points de milliers).
- * LOGIQUE :
- * 1. Retirer les espaces.
- * 2. Si virgule présente, retirer les points (séparateurs de milliers) et remplacer la virgule par un point (décimale).
- * 3. Sinon (format anglo-saxon), laisser le point comme décimale.
  */
 const toNum = (v: string) => {
   let s = (v || "").toString().trim();
@@ -37,9 +38,7 @@ const toNum = (v: string) => {
 
   // 2. Gérer les décimales et séparateurs :
   if (s.includes(",")) {
-    // Retirer les points qui sont probablement des séparateurs de milliers (ex: 300.000,50)
     s = s.replace(/\./g, ""); 
-    // Remplacer la virgule décimale par un point (ex: 300000,50 -> 300000.50)
     s = s.replace(",", ".");
   }
   
@@ -47,154 +46,20 @@ const toNum = (v: string) => {
 };
 
 /**
- * Estimation simplifiée des frais de notaire (environ 7.5% du prix dans l'ancien, tous frais compris)
+ * Estimation simplifiée des frais de notaire (environ 7.5% du prix dans l'ancien, 3% pour le commercial)
  */
-function calculateNotaryFees(price: number) {
+function calculateNotaryFees(price: number, type: 'residential' | 'commercial' = 'residential') {
   if (price <= 0) return 0;
-  const FEE_RATE_OLD = 0.075;
-  return price * FEE_RATE_OLD;
+  const FEE_RATE = type === 'commercial' ? 0.03 : 0.075; // Taux plus bas pour le commercial (hors TVA)
+  return price * FEE_RATE;
 }
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="rounded-2xl bg-white shadow p-5">
-      <h3 className="text-lg font-semibold mb-3">{title}</h3>
-      {children}
-    </div>
-  );
-}
-
-function Field({
-  label,
-  suffix,
-  value,
-  onChange,
-  help,
-  readOnly = false,
-  decimals = 0,
-}: {
-  label: string;
-  suffix?: string;
-  value: string | number;
-  onChange: (v: string) => void;
-  help?: string;
-  readOnly?: boolean;
-  decimals?: number; // Pour afficher un nombre non monétaire avec une précision donnée
-}) {
-  const displayValue = readOnly ? fmt(Number(value), decimals) : value;
-
-  return (
-    <label className="flex items-start justify-between gap-3 w-full">
-      <div className="w-1/2">
-        <div className="text-sm text-gray-700 font-medium">{label}</div>
-        {help ? <div className="text-xs text-gray-400">{help}</div> : null}
-      </div>
-      <span className="flex items-center gap-2 w-1/2">
-        <input
-          className={`w-full rounded-xl border p-2 focus:outline-none ${readOnly ? "bg-gray-100 text-gray-600 cursor-not-allowed" : "focus:ring"}`}
-          value={displayValue}
-          onChange={(e) => onChange(e.target.value)}
-          inputMode="decimal"
-          type="text"
-          readOnly={readOnly}
-        />
-        {suffix ? <span className="text-gray-500 text-sm">{suffix}</span> : null}
-      </span>
-    </label>
-  );
-}
-
-function Tabs({ tabs, active, onChange }: { tabs: string[]; active: string; onChange: (t: string) => void }) {
-  return (
-    <div className="inline-flex rounded-2xl bg-gray-100 p-1 no-print">
-      {tabs.map((t) => (
-        <button
-          key={t}
-          onClick={() => onChange(t)}
-          className={`px-4 py-2 rounded-xl text-sm font-medium transition ${
-            active === t ? "bg-white shadow" : "text-gray-600 hover:text-gray-900"
-          }`}
-        >
-          {t}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function Legend({ data, colors }: { data: { name: string; value: number }[]; colors: string[] }) {
-  const total = data.reduce((sum, item) => sum + item.value, 0);
-  return (
-    <div className="flex flex-wrap justify-center gap-2 mt-3 text-xs">
-      {data.map((item, i) => (
-        <div key={i} className="flex items-center gap-1">
-          <span className="w-3 h-3 rounded-full" style={{ backgroundColor: colors[i % colors.length] }}></span>
-          <span className="text-gray-600">{item.name}</span>
-          <span className="text-gray-400">({fmt(item.value)}€)</span>
-        </div>
-      ))}
-      <div className="font-bold text-gray-800 ml-4">Total: {fmt(total)} €</div>
-    </div>
-  );
-}
-
-function DonutWithTotal({
-  data,
-  colors,
-  title,
-  totalTitle,
-}: {
-  data: { name: string; value: number }[];
-  colors: string[];
-  title: string;
-  totalTitle: string;
-}) {
-  const total = data.reduce((sum, item) => sum + item.value, 0);
-
-  // Filtre les données dont la valeur est > 0 pour le graphique
-  const displayData = data.filter(item => item.value > 0);
-  if (displayData.length === 0) {
-    displayData.push({ name: "Aucune donnée", value: 1 }); // Afficher un cercle vide
-  }
-
-  return (
-    <div className="flex flex-col items-center">
-      <div className="h-56 w-full">
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie 
-              dataKey="value" 
-              data={displayData} 
-              innerRadius={50} 
-              outerRadius={80} 
-              paddingAngle={2}
-              // Si pas de données, dessine un cercle gris
-              fill={displayData.length === 1 && displayData[0].name === "Aucune donnée" ? "#ccc" : undefined}
-            >
-              {displayData.map((_, i) => (
-                <Cell key={i} fill={colors[i % colors.length]} />
-              ))}
-            </Pie>
-            <Tooltip formatter={(v: number, n, props) => [`${fmt(v)} €`, props.payload.name]} />
-          </PieChart>
-        </ResponsiveContainer>
-      </div>
-      <div className="text-center text-sm font-medium mt-2">
-        {title}
-      </div>
-      <div className="text-lg font-bold text-gray-800">{totalTitle}: {fmt(total)} €</div>
-      <Legend data={data} colors={COLORS} />
-    </div>
-  );
-}
-
 
 /*********************
  * FORMULES FINANCIÈRES
  *********************/
 
 /**
- * Calcule le versement mensuel constant pour un prêt amortissable (correction pour taux 0%).
+ * Calcule le versement mensuel constant pour un prêt amortissable.
  */
 function annuityPayment(capital: number, ratePct: number, years: number) {
   const r = ratePct / 100 / 12; // Taux mensuel
@@ -206,13 +71,13 @@ function annuityPayment(capital: number, ratePct: number, years: number) {
     return capital / n;
   }
   
-  // Cas standard (formule de l'annuité)
+  // Formule de l'annuité
   return (capital * r) / (1 - Math.pow(1 + r, -n));
 }
 
 /**
  * Calcule la Valeur Actuelle d'une série de flux constants (DUH/loyers).
- * C'est la fonction utilisée pour déterminer la valeur du Droit d'Usage et d'Habitation (DUH).
+ * Utilisé pour actualiser les loyers futurs (paiements en début de période - annuité due).
  */
 function presentValueAnnuity(monthly: number, years: number, discountPct: number) {
   const r = discountPct / 100 / 12; // Taux mensuel
@@ -221,7 +86,7 @@ function presentValueAnnuity(monthly: number, years: number, discountPct: number
   
   if (r === 0) return monthly * n;
   
-  // Formule de la valeur actuelle d'une annuité due (paiements en début de période)
+  // Formule de la valeur actuelle d'une annuité due
   const v = monthly * ((1 - Math.pow(1 + r, -n)) / r) * (1 + r);
   return v;
 }
@@ -252,7 +117,7 @@ function solveMonthlyFromPV(targetPV: number, years: number, discountPct: number
  * TABLE INSEE SIMPLIFIÉE
  *********************/
 /**
- * Fournit l'espérance de vie résiduelle par interpolation linéaire.
+ * Fournit l'espérance de vie résiduelle par interpolation linéaire (simplifié).
  */
 function getEsperanceVie(age: number, sexe: string) {
   const tableF: Record<number, number> = { 50: 36, 55: 31.5, 60: 27, 65: 22.5, 70: 18.8, 75: 15, 80: 11.5, 85: 8.5, 90: 6.2, 95: 4.5, 100: 3.5 };
@@ -276,7 +141,142 @@ function getEsperanceVie(age: number, sexe: string) {
   return 0;
 }
 
-const COLORS = ["#3559E0", "#F2C94C", "#E67E22", "#27AE60"];
+
+/*********************
+ * COMPOSANTS UI RÉUTILISABLES
+ *********************/
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl bg-white shadow p-5">
+      <h3 className="text-lg font-semibold mb-3">{title}</h3>
+      {children}
+    </div>
+  );
+}
+
+function Field({
+  label,
+  suffix,
+  value,
+  onChange,
+  help,
+  readOnly = false,
+  decimals = 0,
+}: {
+  label: string;
+  suffix?: string;
+  value: string | number;
+  onChange: (v: string) => void;
+  help?: string;
+  readOnly?: boolean;
+  decimals?: number;
+}) {
+  const displayValue = readOnly ? fmt(Number(value), decimals) : value;
+
+  return (
+    <label className="flex items-start justify-between gap-3 w-full">
+      <div className="w-1/2">
+        <div className="text-sm text-gray-700 font-medium">{label}</div>
+        {help ? <div className="text-xs text-gray-400">{help}</div> : null}
+      </div>
+      <span className="flex items-center gap-2 w-1/2">
+        <input
+          className={`w-full rounded-xl border p-2 focus:outline-none ${readOnly ? "bg-gray-100 text-gray-600 cursor-not-allowed" : "focus:ring"}`}
+          value={displayValue}
+          onChange={(e) => onChange(e.target.value)}
+          inputMode="decimal"
+          type="text"
+          readOnly={readOnly}
+        />
+        {suffix ? <span className="text-gray-500 text-sm">{suffix}</span> : null}
+      </span>
+    </label>
+  );
+}
+
+function Tabs({ tabs, active, onChange }: { tabs: string[]; active: string; onChange: (t: string) => void }) {
+  return (
+    <div className="inline-flex rounded-2xl bg-gray-100 p-1 no-print overflow-x-auto">
+      {tabs.map((t) => (
+        <button
+          key={t}
+          onClick={() => onChange(t)}
+          className={`px-4 py-2 rounded-xl text-sm font-medium transition whitespace-nowrap ${
+            active === t ? "bg-white shadow" : "text-gray-600 hover:text-gray-900"
+          }`}
+        >
+          {t}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function Legend({ data, colors }: { data: { name: string; value: number }[]; colors: string[] }) {
+  return (
+    <div className="flex flex-wrap justify-center gap-2 mt-3 text-xs">
+      {data.filter(item => item.value > 0).map((item, i) => (
+        <div key={i} className="flex items-center gap-1">
+          <span className="w-3 h-3 rounded-full" style={{ backgroundColor: colors[i % colors.length] }}></span>
+          <span className="text-gray-600">{item.name}</span>
+          <span className="text-gray-400">({fmt(item.value)}€)</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function DonutWithTotal({
+  data,
+  colors,
+  title,
+  totalTitle,
+}: {
+  data: { name: string; value: number }[];
+  colors: string[];
+  title: string;
+  totalTitle: string;
+}) {
+  const total = data.reduce((sum, item) => sum + item.value, 0);
+
+  // Filtre les données dont la valeur est > 0 pour le graphique
+  const displayData = data.filter(item => item.value > 0);
+  if (displayData.length === 0) {
+    displayData.push({ name: "Aucune donnée", value: 1 }); // Afficher un cercle gris
+  }
+
+  return (
+    <div className="flex flex-col items-center">
+      <div className="h-56 w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie 
+              dataKey="value" 
+              data={displayData} 
+              innerRadius={50} 
+              outerRadius={80} 
+              paddingAngle={2}
+              // Si pas de données, dessine un cercle gris
+              fill={displayData.length === 1 && displayData[0].name === "Aucune donnée" ? "#ccc" : undefined}
+            >
+              {displayData.map((_, i) => (
+                <Cell key={i} fill={colors[i % colors.length]} />
+              ))}
+            </Pie>
+            <Tooltip formatter={(v: number, n, props) => [`${fmt(v)} €`, props.payload.name]} />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+      <div className="text-center text-sm font-medium mt-2">
+        {title}
+      </div>
+      <div className="text-lg font-bold text-gray-800 mb-2">{totalTitle}: {fmt(total)} €</div>
+      <Legend data={data} colors={COLORS} />
+    </div>
+  );
+}
+
 
 /*********************
  * COMPOSANT LOCATION NUE
@@ -284,7 +284,7 @@ const COLORS = ["#3559E0", "#F2C94C", "#E67E22", "#27AE60"];
 function LocationNue() {
   const [prix, setPrix] = useState("292000");
   const [apport, setApport] = useState("72000");
-  const [taux, setTaux] = useState("2,5"); // Utilisation de la virgule pour la saisie française
+  const [taux, setTaux] = useState("2,5"); 
   const [assurance, setAssurance] = useState("0,35");
   const [duree, setDuree] = useState("20");
   const [loyer, setLoyer] = useState("740");
@@ -297,13 +297,13 @@ function LocationNue() {
   const vAssurance = toNum(assurance);
   const vDuree = toNum(duree);
   
-  // Sécurité numérique : le capital emprunté ne peut être négatif
+  // Calcul du Capital Emprunté
   const capital = Math.max(0, vPrix - vApport); 
 
   // Calcul du prêt (mensualité SANS assurance)
   const mensualite = annuityPayment(capital, vTaux, vDuree);
   
-  // Calcul de l'assurance
+  // Calcul de l'assurance mensuelle
   const assuranceMens = (capital * (vAssurance / 100)) / 12;
   
   // Mensualité totale (capital + intérêt + assurance)
@@ -312,16 +312,17 @@ function LocationNue() {
   // Calculs totaux
   const nbMois = vDuree * 12;
   
-  // Intérêts totaux (Basé sur la mensualité HORS assurance)
+  // Intérêts totaux
   const totalRembourseCapitalAndInterest = mensualite * nbMois;
-  const coutTotalInterets = Math.max(0, totalRembourseCapitalAndInterest - capital); // Le surplus est l'intérêt
+  const coutTotalInterets = Math.max(0, totalRembourseCapitalAndInterest - capital); 
   
   // Coût total de l'assurance
   const coutTotalAssurance = assuranceMens * nbMois;
   
   // Frais de notaire (basé sur le prix du bien)
-  const fraisNotaire = calculateNotaryFees(vPrix);
+  const fraisNotaire = calculateNotaryFees(vPrix, 'residential');
 
+  // Cashflow mensuel
   const totalChargeMens = (toNum(charges) + toNum(taxe)) / 12 + totalRemboursementMensuel;
   const cashflowMens = toNum(loyer) - totalChargeMens;
 
@@ -353,8 +354,8 @@ function LocationNue() {
           <Field label="Durée du prêt" suffix="ans" value={duree} onChange={setDuree} />
           <div className="h-0.5 bg-gray-100 my-4"></div>
           <Field label="Loyer mensuel" suffix="€" value={loyer} onChange={setLoyer} />
-          <Field label="Charges (annuelles)" suffix="€/an" value={charges} onChange={setCharges} />
-          <Field label="Taxe foncière (annuelle)" suffix="€/an" value={taxe} onChange={setTaxe} />
+          <Field label="Charges (annuelles)" suffix="€/an" value={charges} onChange={setCharges} help="Incluses dans les charges locatives" />
+          <Field label="Taxe foncière (annuelle)" suffix="€/an" value={taxe} onChange={setTaxe} help="À la charge du propriétaire" />
         </div>
       </Section>
 
@@ -419,14 +420,13 @@ function Viager() {
   const [taux, setTaux] = useState("2"); // Taux d'actualisation (DUH et rente)
   const [bouquetPct, setBouquetPct] = useState("30"); // Bouquet en % de la Valeur Occupée
   const [index, setIndex] = useState("1,1"); // Taux de révision de la rente
-  // Nouveaux champs pour le débirentier
   const [charges, setCharges] = useState("1200");
   const [taxe, setTaxe] = useState("1300");
 
   // Valeurs numériques
   const vV = toNum(valeur);
   const vAge = toNum(age);
-  const vLoyer = toNum(loyer); // Loyer mensuel estimé
+  const vLoyer = toNum(loyer); 
   const vTaux = toNum(taux);
   const vCharges = toNum(charges);
   const vTaxe = toNum(taxe);
@@ -435,30 +435,30 @@ function Viager() {
   const years = getEsperanceVie(vAge, sexe);
   
   // 2. Calcul de la Valeur du Droit d'Usage et d'Habitation (DUH)
-  // Basé sur la capitalisation des loyers potentiels sur l'espérance de vie, actualisés au taux.
+  // Actualisation des loyers potentiels sur l'espérance de vie.
   const valeurDUH = presentValueAnnuity(vLoyer, years, vTaux);
   
   // 3. Calcul de la Valeur Occupée
   const valeurOccupee = Math.max(0, vV - valeurDUH);
 
-  // 4. Décote en pourcentage (pour l'affichage)
+  // 4. Décote en pourcentage 
   const decotePct = vV > 0 ? (valeurDUH / vV) * 100 : 0;
   
   // 5. Répartition en Bouquet et Capital Rente
   const vBouquetPct = toNum(bouquetPct);
   const capBouquet = (vBouquetPct / 100) * valeurOccupee;
-  const capRente = valeurOccupee - capBouquet; // Le reste devient le capital à convertir en rente
+  const capRente = valeurOccupee - capBouquet; 
   
   // 6. Calcul de la Rente Mensuelle
   const renteMensuelle = solveMonthlyFromPV(capRente, years, vTaux, toNum(index));
 
   // 7. Calcul des frais de notaire sur la valeur occupée
-  const fraisNotaire = calculateNotaryFees(valeurOccupee);
+  const fraisNotaire = calculateNotaryFees(valeurOccupee, 'residential');
   
-  // Coût total de la rente sur l'espérance de vie (non actualisé, pour information)
+  // Coût total de la rente sur l'espérance de vie (non actualisé)
   const coutTotalRente = renteMensuelle * years * 12;
 
-  // Coûts mensuels pour le débirentier
+  // Coûts mensuels pour le débirentier (Charges/Taxes foncières restent pour l'acheteur)
   const coutMensuelDebirentier = renteMensuelle + (vCharges + vTaxe) / 12;
 
   // Données pour les graphiques
@@ -488,7 +488,7 @@ function Viager() {
             value={years} 
             onChange={() => {}} 
             readOnly={true}
-            decimals={1} // Affiche une décimale pour l'âge
+            decimals={1} 
           />
           <div className="h-0.5 bg-gray-100 my-4"></div>
           <Field 
@@ -515,8 +515,8 @@ function Viager() {
           />
           <Field label="Taux de révision rente" suffix="%/an" value={index} onChange={setIndex} decimals={2} />
           <div className="h-0.5 bg-gray-100 my-4"></div>
-          <Field label="Charges (annuelles)" suffix="€/an" value={charges} onChange={setCharges} />
-          <Field label="Taxe foncière (annuelle)" suffix="€/an" value={taxe} onChange={setTaxe} />
+          <Field label="Charges (annuelles)" suffix="€/an" value={charges} onChange={setCharges} help="Non récupérables sur le vendeur" />
+          <Field label="Taxe foncière (annuelle)" suffix="€/an" value={taxe} onChange={setTaxe} help="À la charge du débirentier (sauf accord)" />
         </div>
       </Section>
 
@@ -578,16 +578,276 @@ function Viager() {
 }
 
 /*********************
+ * COMPOSANT LOCAL COMMERCIAL
+ *********************/
+function LocalCommercial() {
+  const [prix, setPrix] = useState("450000"); // Prix HT
+  const [apport, setApport] = useState("150000");
+  const [taux, setTaux] = useState("3"); 
+  const [assurance, setAssurance] = useState("0,30");
+  const [duree, setDuree] = useState("15");
+  const [loyerHT, setLoyerHT] = useState("30000"); // Loyer annuel HT
+  const [chargesProprio, setChargesProprio] = useState("800"); // Charges non récupérables sur le locataire
+  const [taxe, setTaxe] = useState("0"); // Taxe foncière souvent à la charge du locataire (Bail 3/6/9)
+  const [vacance, setVacance] = useState("5"); // Taux de vacance estimé
+  const [gestion, setGestion] = useState("5"); // Frais de gestion sur les loyers
+
+  const vPrix = toNum(prix);
+  const vApport = toNum(apport);
+  const vTaux = toNum(taux);
+  const vAssurance = toNum(assurance);
+  const vDuree = toNum(duree);
+  const vLoyerHT = toNum(loyerHT);
+  const vChargesProprio = toNum(chargesProprio);
+  const vVacance = toNum(vacance);
+  const vGestion = toNum(gestion);
+  const vTaxe = toNum(taxe); // Si propriétaire en assume une partie
+
+  // 1. Calcul du Prêt
+  const capital = Math.max(0, vPrix - vApport); 
+  const mensualite = annuityPayment(capital, vTaux, vDuree);
+  const assuranceMens = (capital * (vAssurance / 100)) / 12;
+  const totalRemboursementMensuel = mensualite + assuranceMens;
+  
+  // 2. Calcul des Rendements
+  const fraisNotaire = calculateNotaryFees(vPrix, 'commercial');
+  
+  // Loyer annuel réel (après vacance)
+  const loyerReelAnnuel = vLoyerHT * (1 - vVacance / 100);
+  
+  // Frais de gestion annuels
+  const fraisGestion = loyerReelAnnuel * (vGestion / 100);
+  
+  // Revenus Nets Annuels (avant impôts)
+  const revenuNetAvantImpots = loyerReelAnnuel - fraisGestion - vChargesProprio - vTaxe;
+  
+  // Rendement Brut
+  const rendementBrut = vPrix > 0 ? (vLoyerHT / vPrix) * 100 : 0;
+  
+  // Rendement Net de charges/frais
+  const rendementNet = vPrix > 0 ? (revenuNetAvantImpots / vPrix) * 100 : 0;
+  
+  // Cashflow mensuel (après charges, avant impôts)
+  const cashflowMens = (revenuNetAvantImpots / 12) - totalRemboursementMensuel;
+
+  // Donut 1 : Coût initial 
+  const donutCout = [
+    { name: "Apport", value: vApport },
+    { name: "Capital prêt", value: capital },
+    { name: "Frais de notaire", value: fraisNotaire },
+  ];
+  
+  // Donut 2 : Flux annuels
+  const donutFluxAnnuel = [
+    { name: "Revenu Loyer Réel", value: loyerReelAnnuel },
+    { name: "Frais de gestion", value: fraisGestion * -1 },
+    { name: "Charges non récup.", value: vChargesProprio * -1 },
+    { name: "Taxe foncière (Proprio)", value: vTaxe * -1 },
+  ];
+
+  return (
+    <div className="grid lg:grid-cols-2 gap-6">
+      <Section title="Paramètres – Local Commercial">
+        <div className="space-y-3">
+          <Field label="Prix d'achat HT" suffix="€" value={prix} onChange={setPrix} />
+          <Field label="Apport" suffix="€" value={apport} onChange={setApport} />
+          <div className="h-0.5 bg-gray-100 my-4"></div>
+          <Field label="Taux du prêt" suffix="%/an" value={taux} onChange={setTaux} decimals={2}/>
+          <Field label="Assurance" suffix="%/an" value={assurance} onChange={setAssurance} decimals={2}/>
+          <Field label="Durée du prêt" suffix="ans" value={duree} onChange={setDuree} />
+          <div className="h-0.5 bg-gray-100 my-4"></div>
+          <Field label="Loyer annuel HT estimé" suffix="€/an" value={loyerHT} onChange={setLoyerHT} />
+          <Field label="Taux de vacance" suffix="%" value={vacance} onChange={setVacance} help="Période sans locataire" />
+          <Field label="Frais de gestion (sur loyer)" suffix="%" value={gestion} onChange={setGestion} />
+          <Field label="Charges Propriétaire annuelles" suffix="€/an" value={chargesProprio} onChange={setChargesProprio} help="Non récupérables sur le locataire" />
+          <Field label="Taxe Foncière (annuelle à charge)" suffix="€/an" value={taxe} onChange={setTaxe} help="Si non répercutée sur le locataire" />
+        </div>
+      </Section>
+
+      <Section title="Résultats – Local Commercial">
+        {/* Résultat 1: Rendements */}
+        <div className="grid grid-cols-2 gap-3 text-sm">
+          <div className="bg-gray-50 p-3 rounded-xl">
+            <div className="text-gray-500">Rendement Brut</div>
+            <div className="font-semibold text-blue-600">{fmt(rendementBrut, 2)} %</div>
+          </div>
+          <div className="bg-gray-50 p-3 rounded-xl">
+            <div className="text-gray-500">Rendement Net de charges/frais</div>
+            <div className="font-semibold text-blue-600">{fmt(rendementNet, 2)} %</div>
+          </div>
+        </div>
+        
+        {/* Résultat 2: Cashflow */}
+        <div className="bg-gray-50 p-3 rounded-xl text-sm mt-3">
+          <div className="text-gray-700 font-semibold mb-1">Cashflow et Remboursement mensuel</div>
+          <div className="flex justify-between">
+            <span className="text-gray-500">Mensualité Prêt (C+I+A) :</span>
+            <span className="font-medium text-red-700">{fmt(totalRemboursementMensuel)} €/mois</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-500">Revenu Net mensuel (avant impôts) :</span>
+            <span className="font-medium">{fmt(revenuNetAvantImpots / 12)} €/mois</span>
+          </div>
+          <div className="flex justify-between mt-1 pt-1 border-t border-gray-200">
+            <span className="font-bold">Cashflow mensuel net (avant impôts) :</span>
+            <span className={`font-bold ${cashflowMens < 0 ? 'text-red-600' : 'text-green-600'}`}>{fmt(cashflowMens)} €/mois</span>
+          </div>
+        </div>
+
+        {/* Graphiques */}
+        <div className="grid md:grid-cols-2 gap-6 mt-4"> 
+          <DonutWithTotal
+            data={donutCout}
+            colors={COLORS}
+            title="Coût d'acquisition initial"
+            totalTitle="Total initial"
+          />
+          <DonutWithTotal
+            data={donutFluxAnnuel}
+            colors={COLORS.slice(1)}
+            title="Flux de trésorerie annuels (avant prêt et impôts)"
+            totalTitle="Revenu Net (hors prêt)"
+          />
+        </div>
+      </Section>
+    </div>
+  );
+}
+
+/*********************
+ * COMPOSANT SCPI
+ *********************/
+function SCPI() {
+  const [montant, setMontant] = useState("100000"); 
+  const [fraisSouscription, setFraisSouscription] = useState("10"); // %
+  const [rendementCible, setRendementCible] = useState("5,5"); // %
+  const [revaloParts, setRevaloParts] = useState("0,5"); // % annuel
+  const [dureeDetention, setDureeDetention] = useState("15"); // années
+  const [tauxMarginal, setTauxMarginal] = useState("30"); // % IR
+  const [psociaux, setPSociaux] = useState("17,2"); // % Prélèvement sociaux
+
+  const vMontant = toNum(montant);
+  const vFraisSous = toNum(fraisSouscription);
+  const vRendement = toNum(rendementCible);
+  const vRevalo = toNum(revaloParts);
+  const vDuree = toNum(dureeDetention);
+  const vTM = toNum(tauxMarginal);
+  const vPS = toNum(psociaux);
+
+  // 1. Calcul des frais et capital net
+  const fraisInitiaux = vMontant * (vFraisSous / 100);
+  const capitalNet = vMontant - fraisInitiaux;
+
+  // 2. Revenus
+  const revenusBrutsAnnuels = capitalNet * (vRendement / 100);
+  const tauxImpositionTotal = (vTM + vPS) / 100;
+  const revenusNetsAnnuels = revenusBrutsAnnuels * (1 - tauxImpositionTotal);
+  
+  // 3. Plus-value et Valeur finale
+  const valeurFinaleEstimee = capitalNet * Math.pow(1 + vRevalo / 100, vDuree);
+  const plusValueEstimee = valeurFinaleEstimee - capitalNet;
+  
+  // 4. Calcul du rendement global (simplifié - Taux de Rendement Moyen)
+  const totalRevenusNets = revenusNetsAnnuels * vDuree;
+  const gainTotal = totalRevenusNets + plusValueEstimee;
+  const rendementGlobalMoyen = vMontant > 0 ? ((gainTotal / vMontant) / vDuree) * 100 : 0;
+
+  // Donut 1 : Coût initial 
+  const donutCout = [
+    { name: "Capital Investi", value: capitalNet },
+    { name: "Frais de souscription", value: fraisInitiaux },
+  ];
+  
+  // Donut 2 : Répartition des revenus annuels
+  const donutRevenus = [
+    { name: "Revenus Nets (Investisseur)", value: revenusNetsAnnuels },
+    { name: "Impôts et PS", value: revenusBrutsAnnuels - revenusNetsAnnuels },
+  ];
+
+  return (
+    <div className="grid lg:grid-cols-2 gap-6">
+      <Section title="Paramètres – SCPI">
+        <div className="space-y-3">
+          <Field label="Montant d'investissement initial" suffix="€" value={montant} onChange={setMontant} />
+          <Field label="Frais de souscription" suffix="%" value={fraisSouscription} onChange={setFraisSouscription} help="Typiquement 8% à 12%" decimals={1} />
+          <Field label="Rendement annuel cible (TDVM)" suffix="%" value={rendementCible} onChange={setRendementCible} help="Rendement distribué (Typiquement 4.5% à 6%)" decimals={2} />
+          <Field label="Durée de détention estimée" suffix="ans" value={dureeDetention} onChange={setDureeDetention} />
+          <Field label="Revalorisation annuelle des parts" suffix="%" value={revaloParts} onChange={setRevaloParts} help="Taux annuel d'augmentation de la valeur de la part" decimals={2} />
+          <div className="h-0.5 bg-gray-100 my-4"></div>
+          <Field label="Taux Marginal d'Imposition (TMI)" suffix="%" value={tauxMarginal} onChange={setTauxMarginal} help="Taux d'Impôt sur le Revenu pour les revenus fonciers" />
+          <Field label="Prélèvements Sociaux (CSG/CRDS)" suffix="%" value={psociaux} onChange={setPSociaux} readOnly={true} help="Taux actuel de 17.2%" decimals={1}/>
+        </div>
+      </Section>
+
+      <Section title="Résultats – SCPI">
+        {/* Résultat 1: Rendements */}
+        <div className="grid grid-cols-2 gap-3 text-sm">
+          <div className="bg-gray-50 p-3 rounded-xl">
+            <div className="text-gray-500">Revenu Net annuel (après impôts)</div>
+            <div className="font-semibold text-green-600">{fmt(revenusNetsAnnuels)} €</div>
+          </div>
+          <div className="bg-gray-50 p-3 rounded-xl">
+            <div className="text-gray-500">Rendement global moyen (estimé)</div>
+            <div className="font-semibold text-blue-600">{fmt(rendementGlobalMoyen, 2)} %/an</div>
+          </div>
+        </div>
+        
+        {/* Résultat 2: Valeur et Plus-Value */}
+        <div className="bg-gray-50 p-3 rounded-xl text-sm mt-3">
+          <div className="text-gray-700 font-semibold mb-1">Projections sur {fmt(vDuree, 0)} ans</div>
+          <div className="flex justify-between">
+            <span className="text-gray-500">Capital Net Investi :</span>
+            <span className="font-medium text-gray-700">{fmt(capitalNet)} €</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-500">Valeur finale des parts (estimation) :</span>
+            <span className="font-medium">{fmt(valeurFinaleEstimee)} €</span>
+          </div>
+          <div className="flex justify-between mt-1 pt-1 border-t border-gray-200">
+            <span className="font-bold">Total des Revenus Nets cumulés :</span>
+            <span className="font-bold text-green-600">{fmt(totalRevenusNets)} €</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="font-bold">Plus-value estimée :</span>
+            <span className="font-bold text-green-600">{fmt(plusValueEstimee)} €</span>
+          </div>
+        </div>
+
+        {/* Graphiques */}
+        <div className="grid md:grid-cols-2 gap-6 mt-4"> 
+          <DonutWithTotal
+            data={donutCout}
+            colors={COLORS}
+            title="Détail du Capital Investi"
+            totalTitle="Total Investi"
+          />
+          <DonutWithTotal
+            data={donutRevenus}
+            colors={COLORS.slice(2)}
+            title="Répartition des revenus bruts annuels"
+            totalTitle="Revenus bruts"
+          />
+        </div>
+      </Section>
+    </div>
+  );
+}
+
+/*********************
  * APP PRINCIPALE
  *********************/
 export default function App() {
+  // Liste complète des onglets
+  const allTabs = ["Location nue", "Viager", "Local Commercial", "SCPI"];
   const [tab, setTab] = useState("Viager"); 
 
   useEffect(() => {
-    document.title = `Simulateur ${tab} – Viager & Location`;
+    // Met à jour le titre du document
+    document.title = `Simulateur ${tab} – Comparatif Investissement`;
   }, [tab]);
   
   const handlePrint = () => {
+    // Déclenche la boîte de dialogue d'impression du navigateur
     window.print();
   };
 
@@ -596,14 +856,14 @@ export default function App() {
       {/* Styles pour l'impression */}
       <style>{printStyles}</style>
 
-      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white font-sans">
         <div className="max-w-6xl mx-auto p-6 space-y-6 print-max-w">
-          <header className="flex justify-between items-center no-print">
+          <header className="flex justify-between items-center no-print flex-col sm:flex-row gap-4">
             <div>
-              <h1 className="text-2xl font-bold">Simulateur Viager & Location</h1>
-              <p className="text-sm text-gray-500">Comparateur interactif avec frais de notaire</p>
+              <h1 className="text-2xl font-bold">Simulateur Investissement Immobilier</h1>
+              <p className="text-sm text-gray-500">Comparateur Viager, Location, Commercial et SCPI</p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-center gap-3">
               <button
                 onClick={handlePrint}
                 className="px-4 py-2 rounded-xl text-sm font-medium bg-gray-200 text-gray-700 hover:bg-gray-300 transition shadow flex items-center"
@@ -611,20 +871,23 @@ export default function App() {
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 inline-block mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12M18 14v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4"/></svg>
                 Version Imprimable PDF
               </button>
-              <Tabs tabs={["Location nue", "Viager"]} active={tab} onChange={setTab} />
+              <Tabs tabs={allTabs} active={tab} onChange={setTab} />
             </div>
           </header>
 
-          {/* Titre pour l'impression */}
+          {/* Titre pour l'impression (apparaît uniquement dans le PDF) */}
           <div className="hidden print:block text-center mb-6">
-             <h1 className="text-2xl font-bold">Rapport de Simulation Viager vs Location ({tab})</h1>
+             <h1 className="text-2xl font-bold">Rapport de Simulation Investissement ({tab})</h1>
              <p className="text-sm text-gray-500">Date du rapport : {new Date().toLocaleDateString('fr-FR')}</p>
           </div>
 
-          {tab === "Location nue" ? <LocationNue /> : <Viager />}
+          {tab === "Location nue" && <LocationNue />}
+          {tab === "Viager" && <Viager />}
+          {tab === "Local Commercial" && <LocalCommercial />}
+          {tab === "SCPI" && <SCPI />}
 
           <footer className="text-xs text-gray-400 text-center mt-8 no-print">
-            Données indicatives — tables et calculs simplifiés. Consultez un notaire ou un expert viager pour un calcul précis.
+            Données indicatives — tables et calculs simplifiés. Consultez un professionnel (notaire, expert viager, conseiller en gestion de patrimoine) pour un conseil personnalisé.
           </footer>
         </div>
       </div>
