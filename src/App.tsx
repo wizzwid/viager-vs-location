@@ -115,7 +115,24 @@ function getEsperanceVie(age: number, sexe: string) {
 }
 
 /*********************
- * SIMULATEUR LOCATION NUE
+ * COMPOSANT LÉGENDE
+ *********************/
+function Legend({ data, colors }: { data: { name: string; value: number }[]; colors: string[] }) {
+  return (
+    <div className="flex flex-wrap justify-center gap-2 mt-3 text-xs">
+      {data.map((item, i) => (
+        <div key={i} className="flex items-center gap-1">
+          <span className="w-3 h-3 rounded-full" style={{ backgroundColor: colors[i % colors.length] }}></span>
+          <span className="text-gray-600">{item.name}</span>
+          <span className="text-gray-400">({fmt(item.value)}€)</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/*********************
+ * LOCATION NUE
  *********************/
 function LocationNue() {
   const [prix, setPrix] = useState("292000");
@@ -126,7 +143,6 @@ function LocationNue() {
   const [loyer, setLoyer] = useState("740");
   const [charges, setCharges] = useState("1200");
   const [taxe, setTaxe] = useState("1300");
-  const [tmi, setTmi] = useState("30");
 
   const vPrix = toNum(prix);
   const vApport = toNum(apport);
@@ -135,7 +151,18 @@ function LocationNue() {
   const assuranceMens = (capital * (toNum(assurance) / 100)) / 12;
   const cashflowMens = toNum(loyer) - (toNum(charges) + toNum(taxe)) / 12 - mensualite - assuranceMens;
 
-  const COLORS = ["#3559E0", "#F2C94C", "#E67E22", "#27AE60", "#E74C3C"];
+  const donutCout = [
+    { name: "Apport", value: vApport },
+    { name: "Capital prêt", value: capital },
+  ];
+  const donutCharge = [
+    { name: "Mensualité", value: mensualite },
+    { name: "Assurance", value: assuranceMens },
+    { name: "Taxe foncière", value: toNum(taxe) / 12 },
+    { name: "Charges", value: toNum(charges) / 12 },
+  ];
+
+  const COLORS = ["#3559E0", "#F2C94C", "#E67E22", "#27AE60"];
 
   return (
     <div className="grid lg:grid-cols-2 gap-6">
@@ -149,20 +176,27 @@ function LocationNue() {
           <Field label="Loyer mensuel" suffix="€" value={loyer} onChange={setLoyer} />
           <Field label="Charges" suffix="€/an" value={charges} onChange={setCharges} />
           <Field label="Taxe foncière" suffix="€/an" value={taxe} onChange={setTaxe} />
-          <Field label="TMI" suffix="%" value={tmi} onChange={setTmi} />
         </div>
       </Section>
 
       <Section title="Résultats – Location nue">
-        <div className="grid grid-cols-2 gap-3 text-sm">
-          <div className="bg-gray-50 p-3 rounded-xl">
-            <div className="text-gray-500">Mensualité</div>
-            <div className="font-semibold">{fmt(mensualite + assuranceMens)} €/mois</div>
-          </div>
-          <div className="bg-gray-50 p-3 rounded-xl">
-            <div className="text-gray-500">Cashflow estimé</div>
-            <div className="font-semibold">{fmt(cashflowMens)} €/mois</div>
-          </div>
+        <div className="grid grid-cols-2 gap-6">
+          {[{ data: donutCout, title: "Répartition du coût" }, { data: donutCharge, title: "Reste à charge mensuel" }].map((graph, idx) => (
+            <div key={idx} className="h-56">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie dataKey="value" data={graph.data} innerRadius={50} outerRadius={80} paddingAngle={2}>
+                    {graph.data.map((_, i) => (
+                      <Cell key={i} fill={COLORS[(i + idx) % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(v: number) => `${fmt(v)} €`} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="text-center text-sm mt-2 font-medium">{graph.title}</div>
+              <Legend data={graph.data} colors={COLORS} />
+            </div>
+          ))}
         </div>
       </Section>
     </div>
@@ -170,7 +204,7 @@ function LocationNue() {
 }
 
 /*********************
- * SIMULATEUR VIAGER
+ * VIAGER
  *********************/
 function Viager() {
   const [valeur, setValeur] = useState("292000");
@@ -188,6 +222,12 @@ function Viager() {
   const capBouquet = (toNum(bouquet) / 100) * valeurOccupee;
   const capRente = (toNum(rente) / 100) * valeurOccupee;
   const renteMensuelle = solveMonthlyFromPV(capRente, years, toNum(taux), toNum(index));
+
+  const donutViager = [
+    { name: "Bouquet", value: capBouquet },
+    { name: "Capital Rente", value: capRente },
+  ];
+  const COLORS = ["#F2994A", "#F2C94C", "#3559E0", "#E67E22"];
 
   return (
     <div className="grid lg:grid-cols-2 gap-6">
@@ -212,13 +252,24 @@ function Viager() {
             <div className="font-semibold">{fmt(valeurOccupee)} €</div>
           </div>
           <div className="bg-gray-50 p-3 rounded-xl">
-            <div className="text-gray-500">Bouquet</div>
-            <div className="font-semibold">{fmt(capBouquet)} €</div>
-          </div>
-          <div className="bg-gray-50 p-3 rounded-xl">
-            <div className="text-gray-500">Rente estimée</div>
+            <div className="text-gray-500">Rente mensuelle</div>
             <div className="font-semibold">{fmt(renteMensuelle)} €/mois</div>
           </div>
+        </div>
+
+        <div className="h-56 mt-4">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie dataKey="value" data={donutViager} innerRadius={50} outerRadius={80} paddingAngle={2}>
+                {donutViager.map((_, i) => (
+                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip formatter={(v: number) => `${fmt(v)} €`} />
+            </PieChart>
+          </ResponsiveContainer>
+          <div className="text-center text-sm mt-2 font-medium">Répartition du viager</div>
+          <Legend data={donutViager} colors={COLORS} />
         </div>
       </Section>
     </div>
@@ -226,7 +277,7 @@ function Viager() {
 }
 
 /*********************
- * APPLICATION PRINCIPALE
+ * APP PRINCIPALE
  *********************/
 export default function App() {
   const [tab, setTab] = useState("Location nue");
@@ -240,15 +291,15 @@ export default function App() {
         <header className="flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold">Simulateur Viager & Location</h1>
-            <p className="text-sm text-gray-500">Comparateur interactif complet</p>
+            <p className="text-sm text-gray-500">Comparateur interactif avec graphiques et légendes</p>
           </div>
           <Tabs tabs={["Location nue", "Viager"]} active={tab} onChange={setTab} />
         </header>
 
         {tab === "Location nue" ? <LocationNue /> : <Viager />}
 
-        <footer className="text-xs text-gray-400">
-          Données indicatives — calculs simplifiés. Adapté pour présentation et comparaison.
+        <footer className="text-xs text-gray-400 text-center">
+          Données indicatives — calculs simplifiés. Version avec graphiques Recharts et légendes.
         </footer>
       </div>
     </div>
