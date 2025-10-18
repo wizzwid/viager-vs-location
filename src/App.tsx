@@ -24,10 +24,10 @@ const fmt = (n: number, d = 2) =>
   
 /**
  * Conversion de la saisie : gère les formats de nombres français (virgule décimale, espaces et points de milliers).
- * * LOGIQUE CORRIGÉE :
- * 1. Retirer les espaces (pour les milliers : 300 000).
- * 2. Retirer les points (.) s'ils sont des séparateurs de milliers (ex: 300.000), mais les conserver pour les décimales si une virgule est déjà utilisée.
- * 3. Remplacer la virgule (,) par un point (.) pour la décimale.
+ * LOGIQUE :
+ * 1. Retirer les espaces.
+ * 2. Si virgule présente, retirer les points (séparateurs de milliers) et remplacer la virgule par un point (décimale).
+ * 3. Sinon (format anglo-saxon), laisser le point comme décimale.
  */
 const toNum = (v: string) => {
   let s = (v || "").toString().trim();
@@ -36,14 +36,12 @@ const toNum = (v: string) => {
   s = s.replace(/\s/g, "");
 
   // 2. Gérer les décimales et séparateurs :
-  // Si le nombre contient une virgule, on la traite comme séparateur décimal et on ignore les points.
   if (s.includes(",")) {
     // Retirer les points qui sont probablement des séparateurs de milliers (ex: 300.000,50)
     s = s.replace(/\./g, ""); 
     // Remplacer la virgule décimale par un point (ex: 300000,50 -> 300000.50)
     s = s.replace(",", ".");
   }
-  // Si le nombre ne contient PAS de virgule, on laisse le point comme séparateur décimal (format anglo-saxon).
   
   return Number(s) || 0;
 };
@@ -214,10 +212,13 @@ function annuityPayment(capital: number, ratePct: number, years: number) {
 
 /**
  * Calcule la Valeur Actuelle d'une série de flux constants (DUH/loyers).
+ * C'est la fonction utilisée pour déterminer la valeur du Droit d'Usage et d'Habitation (DUH).
  */
 function presentValueAnnuity(monthly: number, years: number, discountPct: number) {
   const r = discountPct / 100 / 12; // Taux mensuel
   const n = Math.round(years * 12); // Nombre de mois
+  if (n === 0 || monthly === 0) return 0;
+  
   if (r === 0) return monthly * n;
   
   // Formule de la valeur actuelle d'une annuité due (paiements en début de période)
@@ -311,7 +312,7 @@ function LocationNue() {
   // Calculs totaux
   const nbMois = vDuree * 12;
   
-  // CORRECTION : Intérêts totaux (Basé sur la mensualité HORS assurance pour éviter le double comptage)
+  // Intérêts totaux (Basé sur la mensualité HORS assurance)
   const totalRembourseCapitalAndInterest = mensualite * nbMois;
   const coutTotalInterets = Math.max(0, totalRembourseCapitalAndInterest - capital); // Le surplus est l'intérêt
   
@@ -338,6 +339,7 @@ function LocationNue() {
     { name: "Taxe foncière (mens.)", value: toNum(taxe) / 12 },
     { name: "Charges (mens.)", value: toNum(charges) / 12 },
   ];
+
 
   return (
     <div className="grid lg:grid-cols-2 gap-6">
@@ -387,7 +389,7 @@ function LocationNue() {
         </div>
         
         {/* Graphiques */}
-        <div className="grid md:grid-cols-3 gap-6 mt-4">
+        <div className="grid md:grid-cols-2 gap-6 mt-4"> 
           <DonutWithTotal
             data={donutCout}
             colors={COLORS}
@@ -399,12 +401,6 @@ function LocationNue() {
             colors={COLORS.slice(2)}
             title="Dépenses récurrentes (mensuelles)"
             totalTitle="Total mensuel"
-          />
-          <DonutWithTotal
-            data={donutCoutEmprunt}
-            colors={["#E67E22", "#27AE60"]}
-            title="Coût total de l'emprunt (sur la durée)"
-            totalTitle="Total Emprunt"
           />
         </div>
       </Section>
@@ -430,7 +426,7 @@ function Viager() {
   // Valeurs numériques
   const vV = toNum(valeur);
   const vAge = toNum(age);
-  const vLoyer = toNum(loyer);
+  const vLoyer = toNum(loyer); // Loyer mensuel estimé
   const vTaux = toNum(taux);
   const vCharges = toNum(charges);
   const vTaxe = toNum(taxe);
@@ -439,9 +435,10 @@ function Viager() {
   const years = getEsperanceVie(vAge, sexe);
   
   // 2. Calcul de la Valeur du Droit d'Usage et d'Habitation (DUH)
+  // Basé sur la capitalisation des loyers potentiels sur l'espérance de vie, actualisés au taux.
   const valeurDUH = presentValueAnnuity(vLoyer, years, vTaux);
   
-  // 3. Calcul de la Valeur Occupée (sécurité numérique)
+  // 3. Calcul de la Valeur Occupée
   const valeurOccupee = Math.max(0, vV - valeurDUH);
 
   // 4. Décote en pourcentage (pour l'affichage)
