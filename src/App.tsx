@@ -18,13 +18,13 @@ const printStyles = `
 /*********************
  * UTILITAIRES GÉNÉRAUX
  *********************/
-// Formatage en monétaire français (ex: 123 456)
-const fmt = (n: number, d = 0) =>
-  isFinite(n) ? n.toLocaleString("fr-FR", { maximumFractionDigits: d }) : "—";
+// Formatage en monétaire français (ex: 123 456,78). Par défaut, deux décimales sont forcées.
+const fmt = (n: number, d = 2) =>
+  isFinite(n) ? n.toLocaleString("fr-FR", { maximumFractionDigits: d, minimumFractionDigits: d }) : "—";
   
 /**
  * Conversion de la saisie : retire les séparateurs de milliers FR (espaces, points) 
- * et gère la virgule décimale (correction demandée pour plus de robustesse FR).
+ * et gère la virgule décimale.
  */
 const toNum = (v: string) => {
   let s = (v || "").toString();
@@ -36,11 +36,8 @@ const toNum = (v: string) => {
 
 /**
  * Estimation simplifiée des frais de notaire (environ 7.5% du prix dans l'ancien, tous frais compris)
- * @param price - Le montant du bien ou de la valeur à taxer (e.g. valeur nue)
- * @returns Montant estimé des frais de notaire
  */
 function calculateNotaryFees(price: number) {
-  // Taux indicatif pour un bien ancien (7.5%)
   if (price <= 0) return 0;
   const FEE_RATE_OLD = 0.075;
   return price * FEE_RATE_OLD;
@@ -62,6 +59,7 @@ function Field({
   onChange,
   help,
   readOnly = false,
+  decimals = 0,
 }: {
   label: string;
   suffix?: string;
@@ -69,7 +67,10 @@ function Field({
   onChange: (v: string) => void;
   help?: string;
   readOnly?: boolean;
+  decimals?: number; // Pour afficher un nombre non monétaire avec une précision donnée
 }) {
+  const displayValue = readOnly ? fmt(Number(value), decimals) : value;
+
   return (
     <label className="flex items-start justify-between gap-3 w-full">
       <div className="w-1/2">
@@ -79,7 +80,7 @@ function Field({
       <span className="flex items-center gap-2 w-1/2">
         <input
           className={`w-full rounded-xl border p-2 focus:outline-none ${readOnly ? "bg-gray-100 text-gray-600 cursor-not-allowed" : "focus:ring"}`}
-          value={value}
+          value={displayValue}
           onChange={(e) => onChange(e.target.value)}
           inputMode="decimal"
           type="text"
@@ -189,8 +190,7 @@ function annuityPayment(capital: number, ratePct: number, years: number) {
   
   if (n === 0 || capital === 0) return 0; 
 
-  if (r === 0) {
-    // Taux 0% : remboursement linéaire du capital
+  if (r <= 0) { // Gère le cas r = 0%
     return capital / n;
   }
   
@@ -206,7 +206,7 @@ function presentValueAnnuity(monthly: number, years: number, discountPct: number
   const n = Math.round(years * 12); // Nombre de mois
   if (r === 0) return monthly * n;
   
-  // Formule de la valeur actuelle d'une annuité (paiements en début de période)
+  // Formule de la valeur actuelle d'une annuité due (paiements en début de période)
   const v = monthly * ((1 - Math.pow(1 + r, -n)) / r) * (1 + r);
   return v;
 }
@@ -297,7 +297,7 @@ function LocationNue() {
   // Calculs totaux
   const nbMois = vDuree * 12;
   
-  // CORRECTION : Intérêts totaux (Basé sur la mensualité HORS assurance)
+  // CORRECTION : Intérêts totaux (Basé sur la mensualité HORS assurance pour éviter le double comptage)
   const totalRembourseCapitalAndInterest = mensualite * nbMois;
   const coutTotalInterets = Math.max(0, totalRembourseCapitalAndInterest - capital); // Le surplus est l'intérêt
   
@@ -338,8 +338,8 @@ function LocationNue() {
           <Field label="Prix du bien" suffix="€" value={prix} onChange={setPrix} />
           <Field label="Apport" suffix="€" value={apport} onChange={setApport} />
           <div className="h-0.5 bg-gray-100 my-4"></div>
-          <Field label="Taux du prêt" suffix="%/an" value={taux} onChange={setTaux} />
-          <Field label="Assurance" suffix="%/an" value={assurance} onChange={setAssurance} />
+          <Field label="Taux du prêt" suffix="%/an" value={taux} onChange={setTaux} decimals={2}/>
+          <Field label="Assurance" suffix="%/an" value={assurance} onChange={setAssurance} decimals={2}/>
           <Field label="Durée du prêt" suffix="ans" value={duree} onChange={setDuree} />
           <div className="h-0.5 bg-gray-100 my-4"></div>
           <Field label="Loyer mensuel" suffix="€" value={loyer} onChange={setLoyer} />
@@ -363,7 +363,7 @@ function LocationNue() {
 
         {/* Résultat 2: Coûts totaux du prêt */}
         <div className="bg-gray-50 p-3 rounded-xl text-sm mt-3">
-          <div className="text-gray-700 font-semibold mb-1">Détail du Coût de l'emprunt sur {vDuree} ans</div>
+          <div className="text-gray-700 font-semibold mb-1">Détail du Coût de l'emprunt sur {fmt(vDuree, 0)} ans</div>
           <div className="flex justify-between">
             <span className="text-gray-500">Intérêts du prêt :</span>
             <span className="font-medium text-red-700">{fmt(coutTotalInterets)} €</span>
@@ -421,7 +421,7 @@ function Viager() {
 
   // Valeurs numériques
   const vV = toNum(valeur);
-  const vAge = Number(age);
+  const vAge = toNum(age);
   const vLoyer = toNum(loyer);
   const vTaux = toNum(taux);
   const vCharges = toNum(charges);
@@ -437,7 +437,7 @@ function Viager() {
   const valeurOccupee = Math.max(0, vV - valeurDUH);
 
   // 4. Décote en pourcentage (pour l'affichage)
-  const decotePct = isFinite(valeurDUH / vV) ? (valeurDUH / vV) * 100 : 0;
+  const decotePct = vV > 0 ? (valeurDUH / vV) * 100 : 0;
   
   // 5. Répartition en Bouquet et Capital Rente
   const vBouquetPct = toNum(bouquetPct);
@@ -480,9 +480,10 @@ function Viager() {
           <Field 
             label="Espérance de vie estimée" 
             suffix="ans" 
-            value={years.toFixed(1)} 
+            value={years} 
             onChange={() => {}} 
             readOnly={true}
+            decimals={1} // Affiche une décimale pour l'âge
           />
           <div className="h-0.5 bg-gray-100 my-4"></div>
           <Field 
@@ -498,6 +499,7 @@ function Viager() {
             value={taux} 
             onChange={setTaux} 
             help="Taux pour le DUH et la rente (souvent 2-4%)"
+            decimals={2}
           />
           <Field 
             label="Bouquet (sur valeur occupée)" 
@@ -506,7 +508,7 @@ function Viager() {
             onChange={setBouquetPct} 
             help="Pourcentage de la valeur occupée versé au comptant"
           />
-          <Field label="Taux de révision rente" suffix="%/an" value={index} onChange={setIndex} />
+          <Field label="Taux de révision rente" suffix="%/an" value={index} onChange={setIndex} decimals={2} />
           <div className="h-0.5 bg-gray-100 my-4"></div>
           <Field label="Charges (annuelles)" suffix="€/an" value={charges} onChange={setCharges} />
           <Field label="Taxe foncière (annuelle)" suffix="€/an" value={taxe} onChange={setTaxe} />
@@ -518,7 +520,7 @@ function Viager() {
         <div className="grid grid-cols-3 gap-3 text-sm">
           <div className="bg-gray-50 p-3 rounded-xl">
             <div className="text-gray-500">Décote (DUH)</div>
-            <div className="font-semibold">{decotePct.toFixed(1)} %</div>
+            <div className="font-semibold">{fmt(decotePct, 1)} %</div>
           </div>
           <div className="bg-gray-50 p-3 rounded-xl">
             <div className="text-gray-500">Montant du Bouquet</div>
@@ -563,7 +565,7 @@ function Viager() {
           />
         </div>
         <div className="text-center text-xs text-gray-500 mt-4">
-            Coût total estimé de la rente (non actualisé) sur {years.toFixed(1)} ans: {fmt(coutTotalRente)} €
+            Coût total estimé de la rente (non actualisé) sur {fmt(years, 1)} ans: {fmt(coutTotalRente)} €
         </div>
       </Section>
     </div>
