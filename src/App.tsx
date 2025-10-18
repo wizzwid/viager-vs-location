@@ -60,7 +60,7 @@ function Tabs({ tabs, active, onChange }: { tabs: string[]; active: string; onCh
         <button
           key={t}
           onClick={() => onChange(t)}
-          className={\`px-4 py-2 rounded-xl text-sm font-medium transition \${active === t ? "bg-white shadow" : "text-gray-600 hover:text-gray-900"}\`}
+          className={`px-4 py-2 rounded-xl text-sm font-medium transition ${active === t ? "bg-white shadow" : "text-gray-600 hover:text-gray-900"}`}
         >
           {t}
         </button>
