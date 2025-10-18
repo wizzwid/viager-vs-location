@@ -739,22 +739,37 @@ export default function App() {
 
               <div className="mt-6 flex flex-wrap gap-3">
                 <a href="#simulateur" className="bg-blue-600 text-white px-5 py-2.5 rounded-md shadow hover:bg-blue-700 transition">Comparer maintenant</a>
-                <a href="#contact" className="px-5 py-2.5 rounded-md border border-gray-300 hover:bg-gray-50 transition">Contacter l’équipe</a>
+                <a href="#" className="px-5 py-2.5 rounded-md border border-gray-300 hover:bg-gray-50 transition">Contacter l’équipe</a>
               </div>
             </div>
           </section>
+{/* CONTACT */}
+<section id="contact" className="mt-16 px-4 max-w-3xl mx-auto">
+  <h2 className="text-2xl font-semibold mb-4 text-center">Contact</h2>
+  <p className="text-gray-600 text-center mb-6">
+    Une question, une suggestion ou un cas à partager ?  
+    Remplissez le formulaire ci-dessous, nous vous répondrons rapidement.
+  </p>
 
-          {/* CONTACT (placeholder) */}
-          <section id="contact" className="mt-16 px-4 max-w-3xl mx-auto">
-            <h2 className="text-2xl font-semibold mb-4">Contact</h2>
-            <div className="bg-white rounded-lg shadow p-6">
-              <p className="text-gray-600">
-                Vous avez une suggestion, une question ou vous souhaitez un retour sur un cas précis ?
-                Le formulaire arrive à la prochaine étape. En attendant, vous pouvez utiliser le simulateur
-                ou revenir plus tard sur cette page.
-              </p>
-            </div>
-          </section>
+  <div className="bg-white rounded-lg shadow overflow-hidden">
+    <iframe
+      src="https://docs.google.com/forms/d/e/1FAIpQLSdXirX0dD0kXFXnGHGIu6nCEvbMGtOg8oTMbqg69QPHqoip6A/viewform?embedded=true"
+      width="100%"
+      height="900"
+      frameBorder="0"
+      marginHeight={0}
+      marginWidth={0}
+      title="Formulaire de contact Viager vs Location"
+    >
+      Chargement…
+    </iframe>
+  </div>
+
+  <p className="text-xs text-gray-500 mt-3 text-center">
+    Ce formulaire est protégé par Google Forms (validation automatique et anti-spam intégrés).
+  </p>
+</section>
+
 
           <footer className="text-xs text-gray-400 text-center mt-8 no-print">
             Données indicatives — tables et calculs simplifiés. Consultez un notaire ou un expert viager pour un calcul précis.
