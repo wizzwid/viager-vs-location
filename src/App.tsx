@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 
-// Configuration pour l'impression
+/* ===========================
+   Impression
+=========================== */
 const printStyles = `
   @media print {
     .no-print { display: none !important; }
@@ -12,12 +14,13 @@ const printStyles = `
   }
 `;
 
-/*********************
- * UTILITAIRES GÉNÉRAUX
- *********************/
+/* ===========================
+   Utilitaires
+=========================== */
 const fmt = (n: number, d = 2) =>
   isFinite(n) ? n.toLocaleString("fr-FR", { maximumFractionDigits: d, minimumFractionDigits: d }) : "—";
 
+/** Conversion robuste FR (1 234,56 -> 1234.56) */
 const toNum = (v: string) => {
   let s = (v || "").toString().trim();
   s = s.replace(/\s/g, "");
@@ -28,11 +31,74 @@ const toNum = (v: string) => {
   return Number(s) || 0;
 };
 
+/** Frais de notaire (ancien ~7.5%) */
 function calculateNotaryFees(price: number) {
   if (price <= 0) return 0;
-  const FEE_RATE_OLD = 0.075;
-  return price * FEE_RATE_OLD;
+  return price * 0.075;
 }
+
+/* ===========================
+   Formules financières
+=========================== */
+/** Annuité d’un prêt amortissable (€/mois). Gère r=0. */
+function annuityPayment(capital: number, ratePct: number, years: number) {
+  const r = ratePct / 100 / 12;
+  const n = Math.round(years * 12);
+  if (n === 0 || capital <= 0) return 0;
+  if (r <= 0) return capital / n;
+  return (capital * r) / (1 - Math.pow(1 + r, -n));
+}
+
+/** Valeur actuelle d’une annuité (paiement début de période) */
+function presentValueAnnuity(monthly: number, years: number, discountPct: number) {
+  const r = discountPct / 100 / 12;
+  const n = Math.round(years * 12);
+  if (n === 0 || monthly === 0) return 0;
+  if (r === 0) return monthly * n;
+  return monthly * ((1 - Math.pow(1 + r, -n)) / r) * (1 + r);
+}
+
+/** VA d’une annuité indexée (croissance g, actualisation r) */
+function pvIndexedAnnuity(monthly: number, years: number, discountPct: number, indexPct: number) {
+  const r = discountPct / 100 / 12;
+  const g = indexPct / 100 / 12;
+  const n = Math.round(years * 12);
+  const q = (1 + g) / (1 + r);
+  if (q === 1) return monthly * n;
+  return (monthly * (1 - Math.pow(q, n))) / (1 - q);
+}
+
+/** Rente mensuelle à partir d’une VA cible */
+function solveMonthlyFromPV(targetPV: number, years: number, discountPct: number, indexPct: number) {
+  const ref = pvIndexedAnnuity(100, years, discountPct, indexPct);
+  return ref ? (targetPV / ref) * 100 : 0;
+}
+
+/* ===========================
+   Table INSEE simplifiée (interp.)
+=========================== */
+function getEsperanceVie(age: number, sexe: string) {
+  const tableF: Record<number, number> = { 50: 36, 55: 31.5, 60: 27, 65: 22.5, 70: 18.8, 75: 15, 80: 11.5, 85: 8.5, 90: 6.2, 95: 4.5, 100: 3.5 };
+  const tableM: Record<number, number> = { 50: 32, 55: 28, 60: 24, 65: 20, 70: 16.5, 75: 13, 80: 10, 85: 7.5, 90: 5.5, 95: 4, 100: 3 };
+  const keys = Object.keys(tableF).map(Number).sort((a, b) => a - b);
+  const tbl = sexe.toLowerCase().startsWith("h") ? tableM : tableF;
+
+  if (age <= keys[0]) return tbl[keys[0]];
+  if (age >= keys[keys.length - 1]) return tbl[keys[keys.length - 1]];
+  for (let i = 1; i < keys.length; i++) {
+    if (age <= keys[i]) {
+      const a0 = keys[i - 1], a1 = keys[i];
+      const y0 = tbl[a0], y1 = tbl[a1];
+      return y0 + ((y1 - y0) * (age - a0)) / (a1 - a0);
+    }
+  }
+  return 0;
+}
+
+/* ===========================
+   UI génériques
+=========================== */
+const COLORS = ["#3559E0", "#F2C94C", "#E67E22", "#27AE60", "#8E44AD", "#2D9CDB"];
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -44,24 +110,12 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 function Field({
-  label,
-  suffix,
-  value,
-  onChange,
-  help,
-  readOnly = false,
-  decimals = 0,
+  label, suffix, value, onChange, help, readOnly = false, decimals = 0,
 }: {
-  label: string;
-  suffix?: string;
-  value: string | number;
-  onChange: (v: string) => void;
-  help?: string;
-  readOnly?: boolean;
-  decimals?: number;
+  label: string; suffix?: string; value: string | number;
+  onChange: (v: string) => void; help?: string; readOnly?: boolean; decimals?: number;
 }) {
   const displayValue = readOnly ? fmt(Number(value), decimals) : value;
-
   return (
     <label className="flex items-start justify-between gap-3 w-full">
       <div className="w-1/2">
@@ -118,113 +172,41 @@ function Legend({ data, colors }: { data: { name: string; value: number }[]; col
 }
 
 function DonutWithTotal({
-  data,
-  colors,
-  title,
-  totalTitle,
+  data, colors, title, totalTitle,
 }: {
-  data: { name: string; value: number }[];
-  colors: string[];
-  title: string;
-  totalTitle: string;
+  data: { name: string; value: number }[]; colors: string[]; title: string; totalTitle: string;
 }) {
   const total = data.reduce((sum, item) => sum + item.value, 0);
-  const displayData = data.filter((item) => item.value > 0);
-  if (displayData.length === 0) {
-    displayData.push({ name: "Aucune donnée", value: 1 });
-  }
+  const displayData = data.filter((d) => d.value > 0);
+  if (displayData.length === 0) displayData.push({ name: "Aucune donnée", value: 1 });
   return (
     <div className="flex flex-col items-center">
       <div className="h-56 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
-              dataKey="value"
-              data={displayData}
-              innerRadius={50}
-              outerRadius={80}
-              paddingAngle={2}
+              dataKey="value" data={displayData}
+              innerRadius={50} outerRadius={80} paddingAngle={2}
               fill={displayData.length === 1 && displayData[0].name === "Aucune donnée" ? "#ccc" : undefined}
             >
               {displayData.map((_, i) => (
                 <Cell key={i} fill={colors[i % colors.length]} />
               ))}
             </Pie>
-            <Tooltip formatter={(v: number, _name: any, props: any) => [`${fmt(v)} €`, props?.payload?.name]} />
+            <Tooltip formatter={(v: number, _n: any, p: any) => [`${fmt(v)} €`, p?.payload?.name]} />
           </PieChart>
         </ResponsiveContainer>
       </div>
       <div className="text-center text-sm font-medium mt-2">{title}</div>
-      <div className="text-lg font-bold text-gray-800">
-        {totalTitle}: {fmt(total)} €
-      </div>
-      {/* ⬇️ Correction : Legend reçoit les mêmes couleurs que le donut */}
+      <div className="text-lg font-bold text-gray-800">{totalTitle}: {fmt(total)} €</div>
       <Legend data={data} colors={colors} />
     </div>
   );
 }
 
-/*********************
- * FORMULES FINANCIÈRES
- *********************/
-function annuityPayment(capital: number, ratePct: number, years: number) {
-  const r = ratePct / 100 / 12;
-  const n = Math.round(years * 12);
-  if (n === 0 || capital === 0) return 0;
-  if (r <= 0) return capital / n;
-  return (capital * r) / (1 - Math.pow(1 + r, -n));
-}
-
-function presentValueAnnuity(monthly: number, years: number, discountPct: number) {
-  const r = discountPct / 100 / 12;
-  const n = Math.round(years * 12);
-  if (n === 0 || monthly === 0) return 0;
-  if (r === 0) return monthly * n;
-  return monthly * ((1 - Math.pow(1 + r, -n)) / r) * (1 + r);
-}
-
-function pvIndexedAnnuity(monthly: number, years: number, discountPct: number, indexPct: number) {
-  const r = discountPct / 100 / 12;
-  const g = indexPct / 100 / 12;
-  const n = Math.round(years * 12);
-  const q = (1 + g) / (1 + r);
-  if (q === 1) return monthly * n;
-  return (monthly * (1 - Math.pow(q, n))) / (1 - q);
-}
-
-function solveMonthlyFromPV(targetPV: number, years: number, discountPct: number, indexPct: number) {
-  const ref = pvIndexedAnnuity(100, years, discountPct, indexPct);
-  return ref ? (targetPV / ref) * 100 : 0;
-}
-
-/*********************
- * TABLE INSEE SIMPLIFIÉE
- *********************/
-function getEsperanceVie(age: number, sexe: string) {
-  const tableF: Record<number, number> = { 50: 36, 55: 31.5, 60: 27, 65: 22.5, 70: 18.8, 75: 15, 80: 11.5, 85: 8.5, 90: 6.2, 95: 4.5, 100: 3.5 };
-  const tableM: Record<number, number> = { 50: 32, 55: 28, 60: 24, 65: 20, 70: 16.5, 75: 13, 80: 10, 85: 7.5, 90: 5.5, 95: 4, 100: 3 };
-  const keys = Object.keys(tableF).map(Number).sort((a, b) => a - b);
-  const tbl = sexe.toLowerCase().startsWith("h") ? tableM : tableF;
-
-  if (age <= keys[0]) return tbl[keys[0]];
-  if (age >= keys[keys.length - 1]) return tbl[keys[keys.length - 1]];
-  for (let i = 1; i < keys.length; i++) {
-    if (age <= keys[i]) {
-      const a0 = keys[i - 1];
-      const a1 = keys[i];
-      const y0 = tbl[a0];
-      const y1 = tbl[a1];
-      return y0 + ((y1 - y0) * (age - a0)) / (a1 - a0);
-    }
-  }
-  return 0;
-}
-
-const COLORS = ["#3559E0", "#F2C94C", "#E67E22", "#27AE60"];
-
-/*********************
- * COMPOSANT LOCATION NUE
- *********************/
+/* ===========================
+   Location nue
+=========================== */
 function LocationNue() {
   const [prix, setPrix] = useState("292000");
   const [apport, setApport] = useState("72000");
@@ -298,17 +280,11 @@ function LocationNue() {
         </div>
 
         <div className="bg-gray-50 p-3 rounded-xl text-sm mt-3">
-          <div className="text-gray-700 font-semibold mb-1">Détail du Coût de l'emprunt sur {fmt(vDuree, 0)} ans</div>
-          <div className="flex justify-between">
-            <span className="text-gray-500">Intérêts du prêt :</span>
-            <span className="font-medium text-red-700">{fmt(coutTotalInterets)} €</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-500">Coût total assurance :</span>
-            <span className="font-medium">{fmt(coutTotalAssurance)} €</span>
-          </div>
+          <div className="text-gray-700 font-semibold mb-1">Coût de l'emprunt sur {fmt(vDuree, 0)} ans</div>
+          <div className="flex justify-between"><span className="text-gray-500">Intérêts :</span><span className="font-medium text-red-700">{fmt(coutTotalInterets)} €</span></div>
+          <div className="flex justify-between"><span className="text-gray-500">Assurance :</span><span className="font-medium">{fmt(coutTotalAssurance)} €</span></div>
           <div className="flex justify-between mt-1 pt-1 border-t border-gray-200">
-            <span className="font-bold">Coût total de l'emprunt (Intérêts + Assurance) :</span>
+            <span className="font-bold">Total (Intérêts + Assurance) :</span>
             <span className="font-bold text-red-700">{fmt(coutTotalInterets + coutTotalAssurance)} €</span>
           </div>
         </div>
@@ -322,9 +298,9 @@ function LocationNue() {
   );
 }
 
-/*********************
- * COMPOSANT VIAGER
- *********************/
+/* ===========================
+   Viager
+=========================== */
 function Viager() {
   const [valeur, setValeur] = useState("292000");
   const [age, setAge] = useState("71");
@@ -391,34 +367,16 @@ function Viager() {
 
       <Section title="Résultats – Viager">
         <div className="grid grid-cols-3 gap-3 text-sm">
-          <div className="bg-gray-50 p-3 rounded-xl">
-            <div className="text-gray-500">Décote (DUH)</div>
-            <div className="font-semibold">{fmt(decotePct, 1)} %</div>
-          </div>
-          <div className="bg-gray-50 p-3 rounded-xl">
-            <div className="text-gray-500">Montant du Bouquet</div>
-            <div className="font-semibold">{fmt(capBouquet)} €</div>
-          </div>
-          <div className="bg-gray-50 p-3 rounded-xl">
-            <div className="text-gray-500">Rente mensuelle</div>
-            <div className="font-semibold">{fmt(renteMensuelle)} €/mois</div>
-          </div>
+          <div className="bg-gray-50 p-3 rounded-xl"><div className="text-gray-500">Décote (DUH)</div><div className="font-semibold">{fmt(decotePct, 1)} %</div></div>
+          <div className="bg-gray-50 p-3 rounded-xl"><div className="text-gray-500">Montant du Bouquet</div><div className="font-semibold">{fmt(capBouquet)} €</div></div>
+          <div className="bg-gray-50 p-3 rounded-xl"><div className="text-gray-500">Rente mensuelle</div><div className="font-semibold">{fmt(renteMensuelle)} €/mois</div></div>
         </div>
 
         <div className="bg-gray-50 p-3 rounded-xl text-sm mt-3">
           <div className="text-gray-700 font-semibold mb-1">Coûts récurrents pour le débirentier</div>
-          <div className="flex justify-between">
-            <span className="text-gray-500">Rente mensuelle :</span>
-            <span className="font-medium text-red-700">{fmt(renteMensuelle)} €/mois</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-500">Charges + Taxes Foncières (mensuelles) :</span>
-            <span className="font-medium">{fmt((vCharges + vTaxe) / 12)} €/mois</span>
-          </div>
-          <div className="flex justify-between mt-1 pt-1 border-t border-gray-200">
-            <span className="font-bold">Total mensuel débirentier :</span>
-            <span className="font-bold text-red-700">{fmt(coutMensuelDebirentier)} €/mois</span>
-          </div>
+          <div className="flex justify-between"><span className="text-gray-500">Rente mensuelle :</span><span className="font-medium text-red-700">{fmt(renteMensuelle)} €/mois</span></div>
+          <div className="flex justify-between"><span className="text-gray-500">Charges + Taxes (mens.) :</span><span className="font-medium">{fmt((vCharges + vTaxe) / 12)} €/mois</span></div>
+          <div className="flex justify-between mt-1 pt-1 border-t border-gray-200"><span className="font-bold">Total mensuel débirentier :</span><span className="font-bold text-red-700">{fmt(coutMensuelDebirentier)} €/mois</span></div>
         </div>
 
         <div className="grid md:grid-cols-2 gap-6 mt-4">
@@ -426,16 +384,256 @@ function Viager() {
           <DonutWithTotal data={donutCoutMensuels} colors={COLORS.slice(1)} title="Dépenses récurrentes (mensuelles)" totalTitle="Total mensuel" />
         </div>
         <div className="text-center text-xs text-gray-500 mt-4">
-          Coût total estimé de la rente (non actualisé) sur {fmt(years, 1)} ans: {fmt(coutTotalRente)} €
+          Coût total estimé de la rente (non actualisé) sur {fmt(years, 1)} ans : {fmt(coutTotalRente)} €
         </div>
       </Section>
     </div>
   );
 }
 
-/*********************
- * APP PRINCIPALE
- *********************/
+/* ===========================
+   Local commercial (avec financement)
+=========================== */
+function LocalCommercial() {
+  // Hypothèses d’exploitation
+  const [prix, setPrix] = useState("300000");
+  const [loyerAnnuel, setLoyerAnnuel] = useState("24000");
+  const [vacancePct, setVacancePct] = useState("6");
+  const [chargesProp, setChargesProp] = useState("1500");
+  const [taxeFonciere, setTaxeFonciere] = useState("2500");
+  const [travauxAnn, setTravauxAnn] = useState("1000");
+
+  // Financement
+  const [apport, setApport] = useState("60000");
+  const [taux, setTaux] = useState("3,2");
+  const [assurance, setAssurance] = useState("0,30");
+  const [duree, setDuree] = useState("20");
+
+  const vPrix = toNum(prix);
+  const vLoyerAnnuel = toNum(loyerAnnuel);
+  const vVac = toNum(vacancePct) / 100;
+  const vCharges = toNum(chargesProp);
+  const vTF = toNum(taxeFonciere);
+  const vCapex = toNum(travauxAnn);
+
+  const vApport = toNum(apport);
+  const vTaux = toNum(taux);
+  const vAssur = toNum(assurance);
+  const vDuree = toNum(duree);
+
+  const fraisNotaire = calculateNotaryFees(vPrix);
+  const loyerEffectif = vLoyerAnnuel * (1 - vVac);
+  const chargesAnnuelles = vCharges + vTF + vCapex;
+  const revenuNetAvantDette = Math.max(0, loyerEffectif - chargesAnnuelles);
+  const rendementNet = vPrix > 0 ? (revenuNetAvantDette / vPrix) * 100 : 0;
+
+  // Prêt
+  const capital = Math.max(0, vPrix + fraisNotaire - vApport);
+  const mensualite = annuityPayment(capital, vTaux, vDuree);
+  const assuranceMens = (capital * (vAssur / 100)) / 12;
+  const serviceDeLaDetteMens = mensualite + assuranceMens;
+  const serviceDeLaDetteAnn = serviceDeLaDetteMens * 12;
+
+  const cashflowAnnuel = revenuNetAvantDette - serviceDeLaDetteAnn;
+  const cashflowMens = cashflowAnnuel / 12;
+
+  const donutAcq = [
+    { name: "Apport", value: vApport },
+    { name: "Prêt (net vendeur + frais)", value: capital },
+    { name: "Frais de notaire", value: fraisNotaire },
+  ];
+
+  const donutCharges = [
+    { name: "Vacance (perte loyers)", value: vLoyerAnnuel - loyerEffectif },
+    { name: "Charges propriétaire", value: vCharges },
+    { name: "Taxe foncière", value: vTF },
+    { name: "CAPEX (travaux)", value: vCapex },
+    { name: "Dette (C+I)", value: mensualite * 12 },
+    { name: "Assurance emprunteur", value: assuranceMens * 12 },
+  ];
+
+  return (
+    <div className="grid lg:grid-cols-2 gap-6">
+      <Section title="Paramètres – Local commercial (avec financement)">
+        <div className="space-y-3">
+          <Field label="Prix du local" suffix="€" value={prix} onChange={setPrix} />
+          <Field label="Loyer annuel (bail)" suffix="€/an" value={loyerAnnuel} onChange={setLoyerAnnuel} />
+          <Field label="Vacance/impayés" suffix="%" value={vacancePct} onChange={setVacancePct} />
+          <div className="h-0.5 bg-gray-100 my-4"></div>
+          <Field label="Charges propriétaire (annuelles)" suffix="€" value={chargesProp} onChange={setChargesProp} />
+          <Field label="Taxe foncière" suffix="€" value={taxeFonciere} onChange={setTaxeFonciere} />
+          <Field label="CAPEX lissé (travaux)" suffix="€" value={travauxAnn} onChange={setTravauxAnn} />
+          <div className="h-0.5 bg-gray-100 my-4"></div>
+          <Field label="Apport" suffix="€" value={apport} onChange={setApport} />
+          <Field label="Taux du prêt" suffix="%/an" value={taux} onChange={setTaux} decimals={2} />
+          <Field label="Assurance emprunteur" suffix="%/an" value={assurance} onChange={setAssurance} decimals={2} />
+          <Field label="Durée du prêt" suffix="ans" value={duree} onChange={setDuree} />
+        </div>
+      </Section>
+
+      <Section title="Résultats – Local commercial">
+        <div className="grid grid-cols-3 gap-3 text-sm">
+          <div className="bg-gray-50 p-3 rounded-xl"><div className="text-gray-500">Loyer effectif</div><div className="font-semibold">{fmt(loyerEffectif)} €/an</div></div>
+          <div className="bg-gray-50 p-3 rounded-xl"><div className="text-gray-500">Revenu net (avant dette)</div><div className="font-semibold">{fmt(revenuNetAvantDette)} €/an</div></div>
+          <div className="bg-gray-50 p-3 rounded-xl"><div className="text-gray-500">Rendement net</div><div className="font-semibold">{fmt(rendementNet, 2)} %</div></div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 text-sm mt-3">
+          <div className="bg-gray-50 p-3 rounded-xl"><div className="text-gray-500">Service de la dette</div><div className="font-semibold">{fmt(serviceDeLaDetteAnn)} €/an</div></div>
+          <div className={`bg-gray-50 p-3 rounded-xl ${cashflowAnnuel < 0 ? "text-red-700" : "text-green-700"}`}>
+            <div className="text-gray-500">Cashflow net</div>
+            <div className="font-semibold">{fmt(cashflowAnnuel)} €/an ({fmt(cashflowMens)} €/mois)</div>
+          </div>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-6 mt-4">
+          <DonutWithTotal data={donutAcq} colors={COLORS} title="Structure d'acquisition" totalTitle="Total financé" />
+          <DonutWithTotal data={donutCharges} colors={COLORS.slice(1)} title="Déductions/charges annuelles" totalTitle="Total charges" />
+        </div>
+      </Section>
+    </div>
+  );
+}
+
+/* ===========================
+   SCPI (avec financement + délai de jouissance)
+=========================== */
+function SCPI() {
+  // Investissement
+  const [montant, setMontant] = useState("50000");       // Montant brut déboursé (inclut frais de souscription)
+  const [td, setTd] = useState("5");                     // Taux de distribution (net de frais de gestion véhicule)
+  const [fraisSous, setFraisSous] = useState("8");       // % (direct)
+  const [fraisAnn, setFraisAnn] = useState("0");         // % additionnel éventuel (souvent 0 car inclus dans TD)
+  const [delaiJouissanceMois, setDelaiJouissanceMois] = useState("3"); // mois sans distribution
+
+  // Financement
+  const [apport, setApport] = useState("10000");
+  const [taux, setTaux] = useState("3,1");
+  const [assurance, setAssurance] = useState("0,30");
+  const [duree, setDuree] = useState("15");
+
+  // Décomposition entrée : montant = capital net investi + frais de souscription
+  const vMontant = toNum(montant);
+  const vTD = toNum(td) / 100;
+  const vFraisSous = toNum(fraisSous) / 100;
+  const vFraisAnn = toNum(fraisAnn) / 100;
+  const vDelai = Math.max(0, Math.min(12, Math.round(toNum(delaiJouissanceMois)))); // borne 0-12
+
+  const capitalNetInvesti = vMontant / (1 + vFraisSous); // si 8% de frais, 108 = 100 net + 8 de frais
+  const fraisSouscription = vMontant - capitalNetInvesti;
+
+  // Distribution annuelle ajustée du délai (en 1ère année)
+  const distributionBrutePleine = capitalNetInvesti * vTD; // rythme annuel plein
+  const distributionBruteAn1 = distributionBrutePleine * ((12 - vDelai) / 12); // prorata
+  const distributionBruteRecurrente = distributionBrutePleine; // années suivantes (info)
+
+  // Frais récurrents additionnels (si renseignés) :
+  const fraisRecurAnn = capitalNetInvesti * vFraisAnn;
+  const distributionNetteAn1 = Math.max(0, distributionBruteAn1 - fraisRecurAnn);
+  const distributionNettePleine = Math.max(0, distributionBruteRecurrente - fraisRecurAnn);
+
+  // Financement : on finance le montant déboursé (brut), frais inclus
+  const vApport = toNum(apport);
+  const vTaux = toNum(taux);
+  const vAssur = toNum(assurance);
+  const vDuree = toNum(duree);
+  const capital = Math.max(0, vMontant - vApport);
+  const mensualite = annuityPayment(capital, vTaux, vDuree);
+  const assuranceMens = (capital * (vAssur / 100)) / 12;
+  const detteMens = mensualite + assuranceMens;
+
+  // Cashflow année 1 (période proratisée)
+  const cashflowAn1 = distributionNetteAn1 - (detteMens * 12);
+  const cashflowMensAn1 = cashflowAn1 / 12;
+
+  // Cashflow en régime de croisière (après délai)
+  const cashflowPlein = distributionNettePleine - (detteMens * 12);
+  const cashflowMensPlein = cashflowPlein / 12;
+
+  const donutInvest = [
+    { name: "Capital net investi", value: capitalNetInvesti },
+    { name: "Frais de souscription", value: fraisSouscription },
+    { name: "Apport", value: vApport },
+    { name: "Dette (montant prêté)", value: capital },
+  ];
+
+  const donutFluxAn1 = [
+    { name: "Distribution nette (an 1)", value: distributionNetteAn1 },
+    { name: "Service de la dette (an 1)", value: detteMens * 12 },
+  ];
+
+  const donutFluxPlein = [
+    { name: "Distribution nette (régime plein)", value: distributionNettePleine },
+    { name: "Service de la dette (régime plein)", value: detteMens * 12 },
+  ];
+
+  return (
+    <div className="grid lg:grid-cols-2 gap-6">
+      <Section title="Paramètres – SCPI (avec financement)">
+        <div className="space-y-3">
+          <Field label="Montant déboursé (brut)" suffix="€" value={montant} onChange={setMontant} />
+          <Field label="Taux de distribution (TD)" suffix="%/an" value={td} onChange={setTd} decimals={2} />
+          <Field label="Frais de souscription" suffix="%" value={fraisSous} onChange={setFraisSous} decimals={2} />
+          <Field label="Frais récurrents additionnels" suffix="%/an" value={fraisAnn} onChange={setFraisAnn} decimals={2} />
+          <Field label="Délai de jouissance" suffix="mois" value={delaiJouissanceMois} onChange={setDelaiJouissanceMois} />
+          <div className="h-0.5 bg-gray-100 my-4"></div>
+          <Field label="Apport" suffix="€" value={apport} onChange={setApport} />
+          <Field label="Taux du prêt" suffix="%/an" value={taux} onChange={setTaux} decimals={2} />
+          <Field label="Assurance emprunteur" suffix="%/an" value={assurance} onChange={setAssurance} decimals={2} />
+          <Field label="Durée du prêt" suffix="ans" value={duree} onChange={setDuree} />
+        </div>
+      </Section>
+
+      <Section title="Résultats – SCPI">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+          <div className="bg-gray-50 p-3 rounded-xl">
+            <div className="text-gray-500">Capital net investi</div>
+            <div className="font-semibold">{fmt(capitalNetInvesti)} €</div>
+          </div>
+          <div className="bg-gray-50 p-3 rounded-xl">
+            <div className="text-gray-500">Dette (montant prêté)</div>
+            <div className="font-semibold">{fmt(capital)} €</div>
+          </div>
+          <div className="bg-gray-50 p-3 rounded-xl">
+            <div className="text-gray-500">Mensualité (C+I+A)</div>
+            <div className="font-semibold">{fmt(detteMens)} €/mois</div>
+          </div>
+          <div className={`bg-gray-50 p-3 rounded-xl ${cashflowMensAn1 < 0 ? "text-red-700" : "text-green-700"}`}>
+            <div className="text-gray-500">Cashflow (an 1)</div>
+            <div className="font-semibold">{fmt(cashflowMensAn1)} €/mois</div>
+          </div>
+        </div>
+
+        <div className="bg-gray-50 p-3 rounded-xl text-sm mt-3">
+          <div className="text-gray-700 font-semibold mb-1">Régime plein (après délai)</div>
+          <div className={`flex justify-between ${cashflowPlein < 0 ? "text-red-700" : "text-green-700"}`}>
+            <span>Cashflow annuel :</span><span className="font-semibold">{fmt(cashflowPlein)} €</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Distribution nette (pleine) :</span><span className="font-medium">{fmt(distributionNettePleine)} €/an</span>
+          </div>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-6 mt-4">
+          <DonutWithTotal data={donutInvest} colors={COLORS} title="Structure d'investissement" totalTitle="Total déboursé" />
+          <DonutWithTotal data={donutFluxAn1} colors={COLORS.slice(2)} title="Flux année 1 (proratisé)" totalTitle="Flux nets an 1" />
+        </div>
+
+        <div className="grid md:grid-cols-1 gap-6 mt-4">
+          <DonutWithTotal data={donutFluxPlein} colors={COLORS.slice(1)} title="Flux en régime de croisière" totalTitle="Flux nets pleins" />
+        </div>
+
+        <div className="text-xs text-gray-500 mt-3">
+          Indications simplifiées — fiscalité et éventuels frais de courtage non inclus. Le TD communiqué par les sociétés de gestion est en général <em>net de frais de gestion</em> du véhicule.
+        </div>
+      </Section>
+    </div>
+  );
+}
+
+/* ===========================
+   App
+=========================== */
 export default function App() {
   const [tab, setTab] = useState("Viager");
 
@@ -443,9 +641,7 @@ export default function App() {
     document.title = `Simulateur ${tab} – Viager & Location`;
   }, [tab]);
 
-  const handlePrint = () => {
-    window.print();
-  };
+  const handlePrint = () => window.print();
 
   return (
     <>
@@ -454,21 +650,15 @@ export default function App() {
       <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
         <div className="max-w-6xl mx-auto p-6 space-y-6 print-max-w">
 
-          {/* HERO + CTA (Étape 1) */}
+          {/* HERO + CTA */}
           <header className="mt-8 text-center px-4 no-print">
-            <h1 className="text-3xl md:text-4xl font-bold mb-3">
-              Viager vs Location – Comparez vos investissements
-            </h1>
+            <h1 className="text-3xl md:text-4xl font-bold mb-3">Viager vs Location – Comparez vos investissements</h1>
             <p className="text-gray-600 max-w-2xl mx-auto mb-6">
               Outil gratuit et indépendant pour évaluer la rentabilité du <strong>viager</strong>, de la <strong>location</strong>, d’un <strong>local commercial</strong> ou des <strong>SCPI</strong>.
             </p>
             <div className="flex items-center justify-center gap-3">
-              <a href="#simulateur" className="bg-blue-600 text-white px-6 py-3 rounded-lg shadow hover:bg-blue-700 transition">
-                Calculer ma rentabilité
-              </a>
-              <a href="#apropos" className="px-6 py-3 rounded-lg border border-gray-300 hover:bg-gray-50 transition">
-                En savoir plus
-              </a>
+              <a href="#simulateur" className="bg-blue-600 text-white px-6 py-3 rounded-lg shadow hover:bg-blue-700 transition">Calculer ma rentabilité</a>
+              <a href="#apropos" className="px-6 py-3 rounded-lg border border-gray-300 hover:bg-gray-50 transition">En savoir plus</a>
             </div>
           </header>
 
@@ -486,22 +676,34 @@ export default function App() {
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 inline-block mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12M18 14v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4"/></svg>
                 Version Imprimable PDF
               </button>
-              <Tabs tabs={["Location nue", "Viager"]} active={tab} onChange={setTab} />
+              <Tabs
+                tabs={["Location nue", "Viager", "Local commercial", "SCPI"]}
+                active={tab}
+                onChange={setTab}
+              />
             </div>
           </header>
 
-          {/* Titre pour l'impression */}
+          {/* Impression */}
           <div className="hidden print:block text-center mb-6">
             <h1 className="text-2xl font-bold">Rapport de Simulation Viager vs Location ({tab})</h1>
             <p className="text-sm text-gray-500">Date du rapport : {new Date().toLocaleDateString("fr-FR")}</p>
           </div>
 
-          {/* === Simulateur avec ancre === */}
+          {/* Simulateur */}
           <section id="simulateur">
-            {tab === "Location nue" ? <LocationNue /> : <Viager />}
+            {tab === "Location nue" ? (
+              <LocationNue />
+            ) : tab === "Viager" ? (
+              <Viager />
+            ) : tab === "Local commercial" ? (
+              <LocalCommercial />
+            ) : (
+              <SCPI />
+            )}
           </section>
 
-          {/* === À PROPOS (Étape 2) === */}
+          {/* À PROPOS */}
           <section id="apropos" className="mt-16 px-4 max-w-4xl mx-auto">
             <h2 className="text-2xl font-semibold mb-4">À propos</h2>
             <div className="bg-white rounded-lg shadow p-6 leading-relaxed">
@@ -521,18 +723,9 @@ export default function App() {
                 pour structurer votre réflexion et vos discussions avec vos conseils.
               </p>
               <div className="grid md:grid-cols-3 gap-4 mt-6">
-                <div className="border rounded-md p-4">
-                  <div className="font-semibold mb-1">Indépendance</div>
-                  <div className="text-sm text-gray-600">Aucune commission ni rétrocession.</div>
-                </div>
-                <div className="border rounded-md p-4">
-                  <div className="font-semibold mb-1">Transparence</div>
-                  <div className="text-sm text-gray-600">Hypothèses et calculs explicites.</div>
-                </div>
-                <div className="border rounded-md p-4">
-                  <div className="font-semibold mb-1">Pédagogie</div>
-                  <div className="text-sm text-gray-600">Comparaisons côte à côte et graphiques lisibles.</div>
-                </div>
+                <div className="border rounded-md p-4"><div className="font-semibold mb-1">Indépendance</div><div className="text-sm text-gray-600">Aucune commission ni rétrocession.</div></div>
+                <div className="border rounded-md p-4"><div className="font-semibold mb-1">Transparence</div><div className="text-sm text-gray-600">Hypothèses et calculs explicites.</div></div>
+                <div className="border rounded-md p-4"><div className="font-semibold mb-1">Pédagogie</div><div className="text-sm text-gray-600">Comparaisons côte à côte et graphiques lisibles.</div></div>
               </div>
 
               <div className="mt-6 p-4 bg-gray-50 border rounded-md">
@@ -545,17 +738,13 @@ export default function App() {
               </div>
 
               <div className="mt-6 flex flex-wrap gap-3">
-                <a href="#simulateur" className="bg-blue-600 text-white px-5 py-2.5 rounded-md shadow hover:bg-blue-700 transition">
-                  Comparer maintenant
-                </a>
-                <a href="#contact" className="px-5 py-2.5 rounded-md border border-gray-300 hover:bg-gray-50 transition">
-                  Contacter l’équipe
-                </a>
+                <a href="#simulateur" className="bg-blue-600 text-white px-5 py-2.5 rounded-md shadow hover:bg-blue-700 transition">Comparer maintenant</a>
+                <a href="#contact" className="px-5 py-2.5 rounded-md border border-gray-300 hover:bg-gray-50 transition">Contacter l’équipe</a>
               </div>
             </div>
           </section>
 
-          {/* === CONTACT (placeholder Étape 3) === */}
+          {/* CONTACT (placeholder) */}
           <section id="contact" className="mt-16 px-4 max-w-3xl mx-auto">
             <h2 className="text-2xl font-semibold mb-4">Contact</h2>
             <div className="bg-white rounded-lg shadow p-6">
