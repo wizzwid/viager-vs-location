@@ -652,7 +652,7 @@ export default function App() {
 
           {/* HERO + CTA */}
           <header className="mt-8 text-center px-4 no-print">
-            <h1 className="text-3xl md:text-4xl font-bold mb-3">Viager vs Location – Comparez vos investissements</h1>
+            <h1 className="text-3xl md:text-4xl font-bold mb-3"> Comparez vos investissements</h1>
             <p className="text-gray-600 max-w-2xl mx-auto mb-6">
               Outil gratuit et indépendant pour évaluer la rentabilité du <strong>viager</strong>, de la <strong>location</strong>, d’un <strong>local commercial</strong> ou des <strong>SCPI</strong>.
             </p>
