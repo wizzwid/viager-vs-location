@@ -1,4 +1,4 @@
-Simulateur Viager vs Location
+Calculateur immobilier Location Viager SCPI
 
 Ce projet est une application **React + TypeScript** qui permet de comparer de manière interactive l’investissement en **location nue** et l’achat en **viager**. Il a été conçu avec **Vite**, **TailwindCSS** et **Recharts** pour un rendu rapide et visuel.
 
