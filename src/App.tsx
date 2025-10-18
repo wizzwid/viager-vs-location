@@ -339,11 +339,7 @@ function LocationNue() {
     { name: "Charges (mens.)", value: toNum(charges) / 12 },
   ];
 
-  // Donut 3 : Coût total de l'emprunt (sur la durée)
-  const donutCoutEmprunt = [
-    { name: "Intérêts du prêt", value: coutTotalInterets },
-    { name: "Coût total assurance", value: coutTotalAssurance },
-  ];
+  // Le troisième donut (Coût total de l'emprunt) n'est plus nécessaire
 
   return (
     <div className="grid lg:grid-cols-2 gap-6">
@@ -393,7 +389,7 @@ function LocationNue() {
         </div>
         
         {/* Graphiques */}
-        <div className="grid md:grid-cols-3 gap-6 mt-4">
+        <div className="grid md:grid-cols-2 gap-6 mt-4"> {/* Ajusté à 2 colonnes */}
           <DonutWithTotal
             data={donutCout}
             colors={COLORS}
@@ -406,12 +402,7 @@ function LocationNue() {
             title="Dépenses récurrentes (mensuelles)"
             totalTitle="Total mensuel"
           />
-          <DonutWithTotal
-            data={donutCoutEmprunt}
-            colors={["#E67E22", "#27AE60"]}
-            title="Coût total de l'emprunt (sur la durée)"
-            totalTitle="Total Emprunt"
-          />
+          {/* Le troisième graphique a été retiré, car les coûts totaux de l'emprunt sont déjà détaillés au-dessus. */}
         </div>
       </Section>
     </div>
@@ -616,27 +607,3 @@ export default function App() {
               <button
                 onClick={handlePrint}
                 className="px-4 py-2 rounded-xl text-sm font-medium bg-gray-200 text-gray-700 hover:bg-gray-300 transition shadow flex items-center"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 inline-block mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12M18 14v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4"/></svg>
-                Version Imprimable PDF
-              </button>
-              <Tabs tabs={["Location nue", "Viager"]} active={tab} onChange={setTab} />
-            </div>
-          </header>
-
-          {/* Titre pour l'impression */}
-          <div className="hidden print:block text-center mb-6">
-             <h1 className="text-2xl font-bold">Rapport de Simulation Viager vs Location ({tab})</h1>
-             <p className="text-sm text-gray-500">Date du rapport : {new Date().toLocaleDateString('fr-FR')}</p>
-          </div>
-
-          {tab === "Location nue" ? <LocationNue /> : <Viager />}
-
-          <footer className="text-xs text-gray-400 text-center mt-8 no-print">
-            Données indicatives — tables et calculs simplifiés. Consultez un notaire ou un expert viager pour un calcul précis.
-          </footer>
-        </div>
-      </div>
-    </>
-  );
-}
