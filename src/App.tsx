@@ -289,7 +289,4 @@ function Viager() {
               <Tooltip formatter={(v: number) => `${fmt(v)} €`} />
             </PieChart>
           </ResponsiveContainer>
-          <div className="text-center text-sm mt-2">Répartition du viager</div>
-        </div>
-      </Section>
-    </div>
+         
