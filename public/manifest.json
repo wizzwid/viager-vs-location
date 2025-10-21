@@ -1,6 +1,6 @@
 {
   "name": "Simulateur Viager vs Location",
-  "short_name": "ViagerSim",
+  "short_name": "Calculette Immo",
   "description": "Calculette immobilière gratuite : comparez viager, location nue, SCPI et local commercial.",
   "start_url": "/viager-vs-location/",
   "scope": "/viager-vs-location/",
