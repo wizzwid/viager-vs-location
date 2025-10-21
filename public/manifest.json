@@ -1,22 +1,58 @@
 {
-  "name": "Simulateur Viager vs Location",
+  "name": "Calculette Immo – Simulation Viager, Location, SCPI et Local commercial",
   "short_name": "Calculette Immo",
-  "description": "Calculette immobilière gratuite : comparez viager, location nue, SCPI et local commercial.",
-  "start_url": "/viager-vs-location/",
+  "description": "Calculette immobilière gratuite : comparez viager, location nue, SCPI et local commercial. Simulez la rentabilité nette et le cashflow en quelques secondes.",
+  "start_url": "/viager-vs-location/#/simulateur",
   "scope": "/viager-vs-location/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#ffffff",
   "theme_color": "#3559E0",
+  "dir": "ltr",
+  "lang": "fr-FR",
+  "categories": ["finance", "investment", "productivity"],
   "icons": [
     {
       "src": "/viager-vs-location/icons/icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "/viager-vs-location/icons/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/viager-vs-location/screenshots/simulateur.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "label": "Interface du simulateur Calculette Immo"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Simulation Viager",
+      "url": "/viager-vs-location/#/viager",
+      "description": "Calculer la rentabilité d’un viager"
+    },
+    {
+      "name": "Simulation Location",
+      "url": "/viager-vs-location/#/location",
+      "description": "Calculer la rentabilité locative"
+    },
+    {
+      "name": "Simulation SCPI",
+      "url": "/viager-vs-location/#/scpi",
+      "description": "Comparer l’investissement en SCPI"
+    },
+    {
+      "name": "Local commercial",
+      "url": "/viager-vs-location/#/local-commercial",
+      "description": "Estimer un investissement en local commercial"
     }
   ]
 }
