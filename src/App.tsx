@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
+import { Helmet, HelmetProvider } from "react-helmet-async";
 
 // Configuration pour l'impression
 const printStyles = `
@@ -292,60 +293,67 @@ function LocationNue() {
   ];
 
   return (
-    <div className="grid lg:grid-cols-2 gap-6">
-      <Section title="Paramètres – Location nue">
-        <div className="space-y-3">
-          <Field label="Prix du bien" suffix="€" value={prix} onChange={setPrix} />
-          <Field label="Apport" suffix="€" value={apport} onChange={setApport} />
-          <Field label="Travaux (initiaux, cash)" suffix="€" value={travauxInit} onChange={setTravauxInit} />
-          <div className="h-0.5 bg-gray-100 my-4"></div>
-          <Field label="Taux du prêt" suffix="%/an" value={taux} onChange={setTaux} decimals={2} />
-          <Field label="Assurance" suffix="%/an" value={assurance} onChange={setAssurance} decimals={2} />
-          <Field label="Durée du prêt" suffix="ans" value={duree} onChange={setDuree} />
-          <div className="h-0.5 bg-gray-100 my-4"></div>
-          <Field label="Loyer mensuel" suffix="€" value={loyer} onChange={setLoyer} />
-          <Field label="Charges (annuelles)" suffix="€/an" value={charges} onChange={setCharges} />
-          <Field label="Taxe foncière (annuelle)" suffix="€/an" value={taxe} onChange={setTaxe} />
-          <div className="h-0.5 bg-gray-100 my-4"></div>
-          <Field label="TMI (IR)" suffix="%" value={tmiLoc} onChange={setTmiLoc} />
-          <Field label="Prélèvements sociaux" suffix="%" value={psLoc} onChange={setPsLoc} />
-        </div>
-      </Section>
-
-      <Section title="Résultats – Location nue">
-        <div className="grid grid-cols-3 gap-3 text-sm">
-          <div className="bg-gray-50 p-3 rounded-xl">
-            <div className="text-gray-500">Remboursement mensuel total</div>
-            <div className="font-semibold">{fmt(totalRemboursementMensuel)} €/mois</div>
+    <>
+      <Helmet>
+        <title>Calculette Rendement Location Nue – Cashflow, TMI, Frais de Notaire</title>
+        <meta name="description" content="Intégrez prêt, assurance, charges, taxe foncière, travaux, TMI/PS pour un rendement net réaliste." />
+        <link rel="canonical" href="https://<your-domain-here>/#/location-nue" />
+      </Helmet>
+      <div className="grid lg:grid-cols-2 gap-6">
+        <Section title="Paramètres – Location nue">
+          <div className="space-y-3">
+            <Field label="Prix du bien" suffix="€" value={prix} onChange={setPrix} />
+            <Field label="Apport" suffix="€" value={apport} onChange={setApport} />
+            <Field label="Travaux (initiaux, cash)" suffix="€" value={travauxInit} onChange={setTravauxInit} />
+            <div className="h-0.5 bg-gray-100 my-4"></div>
+            <Field label="Taux du prêt" suffix="%/an" value={taux} onChange={setTaux} decimals={2} />
+            <Field label="Assurance" suffix="%/an" value={assurance} onChange={setAssurance} decimals={2} />
+            <Field label="Durée du prêt" suffix="ans" value={duree} onChange={setDuree} />
+            <div className="h-0.5 bg-gray-100 my-4"></div>
+            <Field label="Loyer mensuel" suffix="€" value={loyer} onChange={setLoyer} />
+            <Field label="Charges (annuelles)" suffix="€/an" value={charges} onChange={setCharges} />
+            <Field label="Taxe foncière (annuelle)" suffix="€/an" value={taxe} onChange={setTaxe} />
+            <div className="h-0.5 bg-gray-100 my-4"></div>
+            <Field label="TMI (IR)" suffix="%" value={tmiLoc} onChange={setTmiLoc} />
+            <Field label="Prélèvements sociaux" suffix="%" value={psLoc} onChange={setPsLoc} />
           </div>
-          <div className="bg-gray-50 p-3 rounded-xl">
-            <div className="text-gray-500">Revenu annuel après impôts (hors dette)</div>
-            <div className="font-semibold">{fmt(revenuAnnApresImpots)} €</div>
+        </Section>
+
+        <Section title="Résultats – Location nue">
+          <div className="grid grid-cols-3 gap-3 text-sm">
+            <div className="bg-gray-50 p-3 rounded-xl">
+              <div className="text-gray-500">Remboursement mensuel total</div>
+              <div className="font-semibold">{fmt(totalRemboursementMensuel)} €/mois</div>
+            </div>
+            <div className="bg-gray-50 p-3 rounded-xl">
+              <div className="text-gray-500">Revenu annuel après impôts (hors dette)</div>
+              <div className="font-semibold">{fmt(revenuAnnApresImpots)} €</div>
+            </div>
+            <div className={`bg-gray-50 p-3 rounded-xl ${cashflowMensApresImpots < 0 ? "text-red-600" : "text-green-600"}`}>
+              <div className="text-gray-500">Cashflow net après impôts</div>
+              <div className="font-semibold">{fmt(cashflowMensApresImpots)} €/mois</div>
+            </div>
           </div>
-          <div className={`bg-gray-50 p-3 rounded-xl ${cashflowMensApresImpots < 0 ? "text-red-600" : "text-green-600"}`}>
-            <div className="text-gray-500">Cashflow net après impôts</div>
-            <div className="font-semibold">{fmt(cashflowMensApresImpots)} €/mois</div>
+
+          <div className="bg-gray-50 p-3 rounded-xl text-sm mt-3">
+            <div className="text-gray-700 font-semibold mb-1">Coût de l'emprunt sur {fmt(vDuree, 0)} ans</div>
+            <div className="flex justify-between"><span className="text-gray-500">Intérêts :</span><span className="font-medium text-red-700">{fmt(coutTotalInterets)} €</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">Assurance :</span><span className="font-medium">{fmt(coutTotalAssurance)} €</span></div>
+            <div className="flex justify-between mt-1 pt-1 border-t border-gray-200"><span className="font-bold">Total :</span><span className="font-bold text-red-700">{fmt(coutTotalInterets + coutTotalAssurance)} €</span></div>
           </div>
-        </div>
 
-        <div className="bg-gray-50 p-3 rounded-xl text-sm mt-3">
-          <div className="text-gray-700 font-semibold mb-1">Coût de l'emprunt sur {fmt(vDuree, 0)} ans</div>
-          <div className="flex justify-between"><span className="text-gray-500">Intérêts :</span><span className="font-medium text-red-700">{fmt(coutTotalInterets)} €</span></div>
-          <div className="flex justify-between"><span className="text-gray-500">Assurance :</span><span className="font-medium">{fmt(coutTotalAssurance)} €</span></div>
-          <div className="flex justify-between mt-1 pt-1 border-t border-gray-200"><span className="font-bold">Total :</span><span className="font-bold text-red-700">{fmt(coutTotalInterets + coutTotalAssurance)} €</span></div>
-        </div>
+          <div className="bg-gray-50 p-3 rounded-xl text-sm mt-3">
+            <div className="flex justify-between"><span className="font-semibold">Rendement net après impôts :</span><span className="font-bold">{fmt(rendementNetApresImpots, 2)} %</span></div>
+            <div className="text-xs text-gray-500">Base investie = Apport + Frais de notaire + Travaux (cash). Impôt approximé sur loyers nets de charges (sans distinction intérêts/assurance).</div>
+          </div>
 
-        <div className="bg-gray-50 p-3 rounded-xl text-sm mt-3">
-          <div className="flex justify-between"><span className="font-semibold">Rendement net après impôts :</span><span className="font-bold">{fmt(rendementNetApresImpots, 2)} %</span></div>
-          <div className="text-xs text-gray-500">Base investie = Apport + Frais de notaire + Travaux (cash). Impôt approximé sur loyers nets de charges (sans distinction intérêts/assurance).</div>
-        </div>
-
-        <div className="grid md:grid-cols-2 gap-6 mt-4">
-          <DonutWithTotal data={donutCout} colors={COLORS} title="Coût d'acquisition initial" totalTitle="Total initial" />
-          <DonutWithTotal data={donutCharge} colors={COLORS.slice(2)} title="Dépenses récurrentes (mensuelles)" totalTitle="Total mensuel" />
-        </div>
-      </Section>
-    </div>
+          <div className="grid md:grid-cols-2 gap-6 mt-4">
+            <DonutWithTotal data={donutCout} colors={COLORS} title="Coût d'acquisition initial" totalTitle="Total initial" />
+            <DonutWithTotal data={donutCharge} colors={COLORS.slice(2)} title="Dépenses récurrentes (mensuelles)" totalTitle="Total mensuel" />
+          </div>
+        </Section>
+      </div>
+    </>
   );
 }
 
@@ -443,67 +451,74 @@ function Viager() {
   ];
 
   return (
-    <div className="grid lg:grid-cols-2 gap-6">
-      <Section title="Paramètres – Viager">
-        <div className="flex items-center justify-between mb-3 no-print">
-          <div className="text-sm text-gray-600">Configuration</div>
-          <Tabs tabs={[...modes]} active={mode} onChange={(t) => setMode(t as typeof modes[number])} />
-        </div>
-        <div className="space-y-3">
-          <Field label="Valeur vénale (marché)" suffix="€" value={valeur} onChange={setValeur} />
-          <Field label="Âge du crédirentier" suffix="ans" value={age} onChange={setAge} />
-          <Field label="Sexe" value={sexe} onChange={setSexe} />
-          <Field label="Espérance de vie estimée" suffix="ans" value={yearsEV} onChange={() => {}} readOnly={true} decimals={1} />
-          <div className="h-0.5 bg-gray-100 my-4"></div>
-          {mode === "Viager occupé" && (
-            <Field label="Loyer mensuel estimé (pour DUH)" suffix="€/mois" value={loyer} onChange={setLoyer} help="Utilisé pour calculer la décote DUH" />
-          )}
-          <Field label="Taux d'actualisation" suffix="%/an" value={taux} onChange={setTaux} help="Taux pour DUH (si occupé) et la rente" decimals={2} />
-          <Field label="Bouquet (sur base)" suffix="%" value={bouquetPct} onChange={setBouquetPct} />
-          {mode !== "Vente à terme" ? (
-            <Field label="Taux de révision rente" suffix="%/an" value={index} onChange={setIndex} decimals={2} />
-          ) : (
-            <Field label="Durée de paiement (vente à terme)" suffix="ans" value={dureeTerme} onChange={setDureeTerme} />
-          )}
-          <div className="h-0.5 bg-gray-100 my-4"></div>
-          <Field label="Charges (annuelles)" suffix="€/an" value={charges} onChange={setCharges} />
-          <Field label="Taxe foncière (annuelle)" suffix="€/an" value={taxe} onChange={setTaxe} />
-          <div className="h-0.5 bg-gray-100 my-4"></div>
-          <Field label="Hausse des prix immo" suffix="%/an" value={hausseImmo} onChange={setHausseImmo} />
-          <Field label="Frais de vente à terme" suffix="%" value={fraisVentePct} onChange={setFraisVentePct} />
-        </div>
-      </Section>
-
-      <Section title="Résultats – Viager">
-        <div className="grid grid-cols-3 gap-3 text-sm">
-          {mode === "Viager occupé" && (
-            <div className="bg-gray-50 p-3 rounded-xl"><div className="text-gray-500">Décote (DUH)</div><div className="font-semibold">{fmt(decotePct, 1)} %</div></div>
-          )}
-          <div className="bg-gray-50 p-3 rounded-xl"><div className="text-gray-500">Montant du Bouquet</div><div className="font-semibold">{fmt(capBouquet)} €</div></div>
-          <div className="bg-gray-50 p-3 rounded-xl">
-            <div className="text-gray-500">{mode === "Vente à terme" ? "Mensualité (terme)" : "Rente mensuelle"}</div>
-            <div className="font-semibold">{fmt(mode === "Vente à terme" ? mensualiteTerme : renteMensuelle)} €/mois</div>
+    <>
+      <Helmet>
+        <title>Simulateur Viager Occupé/Libre & Vente à Terme – Bouquet, Rente, DUH</title>
+        <meta name="description" content="Calculez la décote DUH, bouquet, rente indexée, horizon (espérance de vie), revente à terme et rendement annualisé." />
+        <link rel="canonical" href="https://<your-domain-here>/#/viager" />
+      </Helmet>
+      <div className="grid lg:grid-cols-2 gap-6">
+        <Section title="Paramètres – Viager">
+          <div className="flex items-center justify-between mb-3 no-print">
+            <div className="text-sm text-gray-600">Configuration</div>
+            <Tabs tabs={[...modes]} active={mode} onChange={(t) => setMode(t as typeof modes[number])} />
           </div>
-        </div>
+          <div className="space-y-3">
+            <Field label="Valeur vénale (marché)" suffix="€" value={valeur} onChange={setValeur} />
+            <Field label="Âge du crédirentier" suffix="ans" value={age} onChange={setAge} />
+            <Field label="Sexe" value={sexe} onChange={setSexe} />
+            <Field label="Espérance de vie estimée" suffix="ans" value={yearsEV} onChange={() => {}} readOnly={true} decimals={1} />
+            <div className="h-0.5 bg-gray-100 my-4"></div>
+            {mode === "Viager occupé" && (
+              <Field label="Loyer mensuel estimé (pour DUH)" suffix="€/mois" value={loyer} onChange={setLoyer} help="Utilisé pour calculer la décote DUH" />
+            )}
+            <Field label="Taux d'actualisation" suffix="%/an" value={taux} onChange={setTaux} help="Taux pour DUH (si occupé) et la rente" decimals={2} />
+            <Field label="Bouquet (sur base)" suffix="%" value={bouquetPct} onChange={setBouquetPct} />
+            {mode !== "Vente à terme" ? (
+              <Field label="Taux de révision rente" suffix="%/an" value={index} onChange={setIndex} decimals={2} />
+            ) : (
+              <Field label="Durée de paiement (vente à terme)" suffix="ans" value={dureeTerme} onChange={setDureeTerme} />
+            )}
+            <div className="h-0.5 bg-gray-100 my-4"></div>
+            <Field label="Charges (annuelles)" suffix="€/an" value={charges} onChange={setCharges} />
+            <Field label="Taxe foncière (annuelle)" suffix="€/an" value={taxe} onChange={setTaxe} />
+            <div className="h-0.5 bg-gray-100 my-4"></div>
+            <Field label="Hausse des prix immo" suffix="%/an" value={hausseImmo} onChange={setHausseImmo} />
+            <Field label="Frais de vente à terme" suffix="%" value={fraisVentePct} onChange={setFraisVentePct} />
+          </div>
+        </Section>
 
-        <div className="bg-gray-50 p-3 rounded-xl text-sm mt-3">
-          <div className="text-gray-700 font-semibold mb-1">Projection à l'échéance ({fmt(horizonYears, 1)} ans)</div>
-          <div className="flex justify-between"><span>Prix futur estimé :</span><span className="font-medium">{fmt(prixFutur)} €</span></div>
-          <div className="flex justify-between"><span>Produit net de vente :</span><span className="font-medium">{fmt(produitNetVente)} €</span></div>
-          <div className="flex justify-between mt-1 pt-1 border-t border-gray-200"><span>Total déboursé (bouquet + frais + rentes/terme + charges/taxes) :</span><span className="font-medium">{fmt(coutTotalInvestisseur)} €</span></div>
-          <div className="flex justify-between mt-1 pt-1 border-t border-gray-200"><span className="font-bold">Rendement annualisé estimé :</span><span className="font-bold">{fmt(rendementAnnualise, 2)} %</span></div>
-        </div>
+        <Section title="Résultats – Viager">
+          <div className="grid grid-cols-3 gap-3 text-sm">
+            {mode === "Viager occupé" && (
+              <div className="bg-gray-50 p-3 rounded-xl"><div className="text-gray-500">Décote (DUH)</div><div className="font-semibold">{fmt(decotePct, 1)} %</div></div>
+            )}
+            <div className="bg-gray-50 p-3 rounded-xl"><div className="text-gray-500">Montant du Bouquet</div><div className="font-semibold">{fmt(capBouquet)} €</div></div>
+            <div className="bg-gray-50 p-3 rounded-xl">
+              <div className="text-gray-500">{mode === "Vente à terme" ? "Mensualité (terme)" : "Rente mensuelle"}</div>
+              <div className="font-semibold">{fmt(mode === "Vente à terme" ? mensualiteTerme : renteMensuelle)} €/mois</div>
+            </div>
+          </div>
 
-        <div className="grid md:grid-cols-2 gap-6 mt-4">
-          <DonutWithTotal data={donutCoutTotal} colors={COLORS} title={mode === "Viager occupé" ? "Répartition de la Valeur Vénale" : "Structure de l'opération"} totalTitle="Total Vénale + Frais" />
-          <DonutWithTotal data={donutCoutMensuels} colors={COLORS.slice(1)} title="Dépenses récurrentes (mensuelles)" totalTitle="Total mensuel" />
-        </div>
+          <div className="bg-gray-50 p-3 rounded-xl text-sm mt-3">
+            <div className="text-gray-700 font-semibold mb-1">Projection à l'échéance ({fmt(horizonYears, 1)} ans)</div>
+            <div className="flex justify-between"><span>Prix futur estimé :</span><span className="font-medium">{fmt(prixFutur)} €</span></div>
+            <div className="flex justify-between"><span>Produit net de vente :</span><span className="font-medium">{fmt(produitNetVente)} €</span></div>
+            <div className="flex justify-between mt-1 pt-1 border-t border-gray-200"><span>Total déboursé (bouquet + frais + rentes/terme + charges/taxes) :</span><span className="font-medium">{fmt(coutTotalInvestisseur)} €</span></div>
+            <div className="flex justify-between mt-1 pt-1 border-t border-gray-200"><span className="font-bold">Rendement annualisé estimé :</span><span className="font-bold">{fmt(rendementAnnualise, 2)} %</span></div>
+          </div>
 
-        {mode !== "Vente à terme" && (
-          <div className="text-center text-xs text-gray-500 mt-4">Coût total estimé de la rente (non actualisé) sur {fmt(yearsEV, 1)} ans: {fmt(renteMensuelle * yearsEV * 12)} €</div>
-        )}
-      </Section>
-    </div>
+          <div className="grid md:grid-cols-2 gap-6 mt-4">
+            <DonutWithTotal data={donutCoutTotal} colors={COLORS} title={mode === "Viager occupé" ? "Répartition de la Valeur Vénale" : "Structure de l'opération"} totalTitle="Total Vénale + Frais" />
+            <DonutWithTotal data={donutCoutMensuels} colors={COLORS.slice(1)} title="Dépenses récurrentes (mensuelles)" totalTitle="Total mensuel" />
+          </div>
+
+          {mode !== "Vente à terme" && (
+            <div className="text-center text-xs text-gray-500 mt-4">Coût total estimé de la rente (non actualisé) sur {fmt(yearsEV, 1)} ans: {fmt(renteMensuelle * yearsEV * 12)} €</div>
+          )}
+        </Section>
+      </div>
+    </>
   );
 }
 
@@ -594,67 +609,74 @@ function SCPI() {
   const cashflowMensPleinPP = (distApresImpotsPleine - serviceDetteMens * 12) / 12;
 
   return (
-    <div className="grid lg:grid-cols-2 gap-6">
-      <Section title="Paramètres – SCPI">
-        <div className="flex items-center justify-between mb-3 no-print">
-          <div className="text-sm text-gray-600">Mode d'investissement</div>
-          <Tabs tabs={[...scpiModes]} active={mode} onChange={(t) => setMode(t as typeof scpiModes[number])} />
-        </div>
-        <div className="space-y-3">
-          <Field label="Montant déboursé (brut)" suffix="€" value={montant} onChange={setMontant} />
-          <Field label="Frais de souscription" suffix="%" value={fraisSous} onChange={setFraisSous} decimals={2} />
+    <>
+      <Helmet>
+        <title>Simulateur SCPI (pleine & nue-propriété) – Rendement & cashflow</title>
+        <meta name="description" content="Calculette SCPI: pleine propriété et nue-propriété, frais de souscription, financement, cashflow après impôts, rendement annualisé." />
+        <link rel="canonical" href="https://<your-domain-here>/#/scpi" />
+      </Helmet>
+      <div className="grid lg:grid-cols-2 gap-6">
+        <Section title="Paramètres – SCPI">
+          <div className="flex items-center justify-between mb-3 no-print">
+            <div className="text-sm text-gray-600">Mode d'investissement</div>
+            <Tabs tabs={[...scpiModes]} active={mode} onChange={(t) => setMode(t as typeof scpiModes[number])} />
+          </div>
+          <div className="space-y-3">
+            <Field label="Montant déboursé (brut)" suffix="€" value={montant} onChange={setMontant} />
+            <Field label="Frais de souscription" suffix="%" value={fraisSous} onChange={setFraisSous} decimals={2} />
 
+            {mode === "Pleine propriété" ? (
+              <>
+                <Field label="Taux de distribution (TD)" suffix="%/an" value={td} onChange={setTd} decimals={2} />
+                <Field label="Frais récurrents additionnels" suffix="%/an" value={fraisAnn} onChange={setFraisAnn} decimals={2} />
+                <Field label="Délai de jouissance" suffix="mois" value={delaiJouissanceMois} onChange={setDelaiJouissanceMois} />
+                <div className="h-0.5 bg-gray-100 my-2"></div>
+                <Field label="TMI (IR)" suffix="%" value={tmiIr} onChange={setTmiIr} />
+                <Field label="Prélèvements sociaux" suffix="%" value={ps} onChange={setPs} />
+              </>
+            ) : (
+              <>
+                <Field label="Durée du démembrement" suffix="ans" value={dureeNP} onChange={setDureeNP} />
+                <Field label="Décote nue-propriété" suffix="%" value={decoteNP} onChange={setDecoteNP} />
+                <Field label="Revalo prix de part" suffix="%/an" value={revaloParts} onChange={setRevaloParts} />
+              </>
+            )}
+
+            <div className="h-0.5 bg-gray-100 my-2"></div>
+            <Field label="Apport" suffix="€" value={apport} onChange={setApport} />
+            <Field label="Taux du prêt" suffix="%/an" value={taux} onChange={setTaux} decimals={2} />
+            <Field label="Assurance emprunteur" suffix="%/an" value={assurance} onChange={setAssurance} decimals={2} />
+            <Field label="Durée du prêt" suffix="ans" value={duree} onChange={setDuree} />
+          </div>
+        </Section>
+
+        <Section title="Résultats – SCPI">
           {mode === "Pleine propriété" ? (
-            <>
-              <Field label="Taux de distribution (TD)" suffix="%/an" value={td} onChange={setTd} decimals={2} />
-              <Field label="Frais récurrents additionnels" suffix="%/an" value={fraisAnn} onChange={setFraisAnn} decimals={2} />
-              <Field label="Délai de jouissance" suffix="mois" value={delaiJouissanceMois} onChange={setDelaiJouissanceMois} />
-              <div className="h-0.5 bg-gray-100 my-2"></div>
-              <Field label="TMI (IR)" suffix="%" value={tmiIr} onChange={setTmiIr} />
-              <Field label="Prélèvements sociaux" suffix="%" value={ps} onChange={setPs} />
-            </>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+              <div className="bg-gray-50 p-3 rounded-xl"><div className="text-gray-500">Capital net investi</div><div className="font-semibold">{fmt(capitalNetInvesti)} €</div></div>
+              <div className="bg-gray-50 p-3 rounded-xl"><div className="text-gray-500">Dette (montant prêté)</div><div className="font-semibold">{fmt(dette)} €</div></div>
+              <div className="bg-gray-50 p-3 rounded-xl"><div className="text-gray-500">Mensualité (C+I+A)</div><div className="font-semibold">{fmt(serviceDetteMens)} €/mois</div></div>
+              <div className={`bg-gray-50 p-3 rounded-xl ${cashflowMensAn1PP < 0 ? "text-red-700" : "text-green-700"}`}><div className="text-gray-500">Cashflow (an 1, après impôts)</div><div className="font-semibold">{fmt(cashflowMensAn1PP)} €/mois</div></div>
+            </div>
           ) : (
-            <>
-              <Field label="Durée du démembrement" suffix="ans" value={dureeNP} onChange={setDureeNP} />
-              <Field label="Décote nue-propriété" suffix="%" value={decoteNP} onChange={setDecoteNP} />
-              <Field label="Revalo prix de part" suffix="%/an" value={revaloParts} onChange={setRevaloParts} />
-            </>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+              <div className="bg-gray-50 p-3 rounded-xl"><div className="text-gray-500">Valeur PP à terme</div><div className="font-semibold">{fmt(valeurPPATerme)} €</div></div>
+              <div className="bg-gray-50 p-3 rounded-xl"><div className="text-gray-500">Rendement NP (annualisé)</div><div className="font-semibold">{fmt(rendementNP, 2)} %</div></div>
+              <div className="bg-gray-50 p-3 rounded-xl"><div className="text-gray-500">Mensualité (C+I+A)</div><div className="font-semibold">{fmt(serviceDetteMens)} €/mois</div></div>
+            </div>
           )}
 
-          <div className="h-0.5 bg-gray-100 my-2"></div>
-          <Field label="Apport" suffix="€" value={apport} onChange={setApport} />
-          <Field label="Taux du prêt" suffix="%/an" value={taux} onChange={setTaux} decimals={2} />
-          <Field label="Assurance emprunteur" suffix="%/an" value={assurance} onChange={setAssurance} decimals={2} />
-          <Field label="Durée du prêt" suffix="ans" value={duree} onChange={setDuree} />
-        </div>
-      </Section>
-
-      <Section title="Résultats – SCPI">
-        {mode === "Pleine propriété" ? (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-            <div className="bg-gray-50 p-3 rounded-xl"><div className="text-gray-500">Capital net investi</div><div className="font-semibold">{fmt(capitalNetInvesti)} €</div></div>
-            <div className="bg-gray-50 p-3 rounded-xl"><div className="text-gray-500">Dette (montant prêté)</div><div className="font-semibold">{fmt(dette)} €</div></div>
-            <div className="bg-gray-50 p-3 rounded-xl"><div className="text-gray-500">Mensualité (C+I+A)</div><div className="font-semibold">{fmt(serviceDetteMens)} €/mois</div></div>
-            <div className={`bg-gray-50 p-3 rounded-xl ${cashflowMensAn1PP < 0 ? "text-red-700" : "text-green-700"}`}><div className="text-gray-500">Cashflow (an 1, après impôts)</div><div className="font-semibold">{fmt(cashflowMensAn1PP)} €/mois</div></div>
+          {/* Un SEUL donut demandé */}
+          <div className="grid md:grid-cols-1 gap-6 mt-4">
+            <DonutWithTotal data={donutMontant} colors={COLORS} title="Répartition du montant déboursé" totalTitle="Total déboursé" />
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-            <div className="bg-gray-50 p-3 rounded-xl"><div className="text-gray-500">Valeur PP à terme</div><div className="font-semibold">{fmt(valeurPPATerme)} €</div></div>
-            <div className="bg-gray-50 p-3 rounded-xl"><div className="text-gray-500">Rendement NP (annualisé)</div><div className="font-semibold">{fmt(rendementNP, 2)} %</div></div>
-            <div className="bg-gray-50 p-3 rounded-xl"><div className="text-gray-500">Mensualité (C+I+A)</div><div className="font-semibold">{fmt(serviceDetteMens)} €/mois</div></div>
+
+          <div className="text-xs text-gray-500 mt-3">
+            * Hypothèses simplifiées. Pleine propriété : revenus distribués imposés à TMI+PS. Nue-propriété : pas de revenus pendant la durée, rendement via valeur reconstituée à terme.
           </div>
-        )}
-
-        {/* Un SEUL donut demandé */}
-        <div className="grid md:grid-cols-1 gap-6 mt-4">
-          <DonutWithTotal data={donutMontant} colors={COLORS} title="Répartition du montant déboursé" totalTitle="Total déboursé" />
-        </div>
-
-        <div className="text-xs text-gray-500 mt-3">
-          * Hypothèses simplifiées. Pleine propriété : revenus distribués imposés à TMI+PS. Nue-propriété : pas de revenus pendant la durée, rendement via valeur reconstituée à terme.
-        </div>
-      </Section>
-    </div>
+        </Section>
+      </div>
+    </>
   );
 }
 
@@ -710,51 +732,58 @@ function LocalCommercial() {
   ];
 
   return (
-    <div className="grid lg:grid-cols-2 gap-6">
-      <Section title="Paramètres – Local commercial">
-        <div className="space-y-3">
-          <Field label="Prix du bien" suffix="€" value={prix} onChange={setPrix} />
-          <Field label="Apport" suffix="€" value={apport} onChange={setApport} />
-          <div className="h-0.5 bg-gray-100 my-4"></div>
-          <Field label="Taux du prêt" suffix="%/an" value={taux} onChange={setTaux} decimals={2} />
-          <Field label="Assurance emprunteur" suffix="%/an" value={assurance} onChange={setAssurance} decimals={2} />
-          <Field label="Durée du prêt" suffix="ans" value={duree} onChange={setDuree} />
-          <div className="h-0.5 bg-gray-100 my-4"></div>
-          <Field label="Loyer mensuel (HC)" suffix="€" value={loyer} onChange={setLoyer} />
-          <Field label="Charges annuelles (PNO, syndic, vacance…)" suffix="€/an" value={charges} onChange={setCharges} />
-          <Field label="Taxe foncière (annuelle)" suffix="€/an" value={taxe} onChange={setTaxe} />
-        </div>
-      </Section>
+    <>
+      <Helmet>
+        <title>Simulateur Local Commercial – Rendement Brut, Net & Cashflow</title>
+        <meta name="description" content="Estimez la rentabilité de votre investissement en local commercial. Calculez le rendement brut, net (hors dette) et le cashflow mensuel." />
+        <link rel="canonical" href="https://<your-domain-here>/#/local-commercial" />
+      </Helmet>
+      <div className="grid lg:grid-cols-2 gap-6">
+        <Section title="Paramètres – Local commercial">
+          <div className="space-y-3">
+            <Field label="Prix du bien" suffix="€" value={prix} onChange={setPrix} />
+            <Field label="Apport" suffix="€" value={apport} onChange={setApport} />
+            <div className="h-0.5 bg-gray-100 my-4"></div>
+            <Field label="Taux du prêt" suffix="%/an" value={taux} onChange={setTaux} decimals={2} />
+            <Field label="Assurance emprunteur" suffix="%/an" value={assurance} onChange={setAssurance} decimals={2} />
+            <Field label="Durée du prêt" suffix="ans" value={duree} onChange={setDuree} />
+            <div className="h-0.5 bg-gray-100 my-4"></div>
+            <Field label="Loyer mensuel (HC)" suffix="€" value={loyer} onChange={setLoyer} />
+            <Field label="Charges annuelles (PNO, syndic, vacance…)" suffix="€/an" value={charges} onChange={setCharges} />
+            <Field label="Taxe foncière (annuelle)" suffix="€/an" value={taxe} onChange={setTaxe} />
+          </div>
+        </Section>
 
-      <Section title="Résultats – Local commercial">
-        <div className="grid grid-cols-2 gap-3 text-sm">
-          <div className="bg-gray-50 p-3 rounded-xl">
-            <div className="text-gray-500">Rendement brut</div>
-            <div className="font-semibold">{fmt(rendementBrut, 2)} %</div>
+        <Section title="Résultats – Local commercial">
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div className="bg-gray-50 p-3 rounded-xl">
+              <div className="text-gray-500">Rendement brut</div>
+              <div className="font-semibold">{fmt(rendementBrut, 2)} %</div>
+            </div>
+            <div className="bg-gray-50 p-3 rounded-xl">
+              <div className="text-gray-500">Rendement net (hors dette)</div>
+              <div className="font-semibold">{fmt(rendementNet, 2)} %</div>
+            </div>
           </div>
-          <div className="bg-gray-50 p-3 rounded-xl">
-            <div className="text-gray-500">Rendement net (hors dette)</div>
-            <div className="font-semibold">{fmt(rendementNet, 2)} %</div>
-          </div>
-        </div>
 
-        <div className="grid grid-cols-2 gap-3 text-sm mt-3">
-          <div className="bg-gray-50 p-3 rounded-xl">
-            <div className="text-gray-500">Mensualité totale (crédit + assur.)</div>
-            <div className="font-semibold">{fmt(mensualiteTotale)} €/mois</div>
+          <div className="grid grid-cols-2 gap-3 text-sm mt-3">
+            <div className="bg-gray-50 p-3 rounded-xl">
+              <div className="text-gray-500">Mensualité totale (crédit + assur.)</div>
+              <div className="font-semibold">{fmt(mensualiteTotale)} €/mois</div>
+            </div>
+            <div className="bg-gray-50 p-3 rounded-xl">
+              <div className="text-gray-500">Cashflow net estimé</div>
+              <div className={`font-semibold ${cashflowMens < 0 ? "text-red-600" : "text-green-600"}`}>{fmt(cashflowMens)} €/mois</div>
+            </div>
           </div>
-          <div className="bg-gray-50 p-3 rounded-xl">
-            <div className="text-gray-500">Cashflow net estimé</div>
-            <div className={`font-semibold ${cashflowMens < 0 ? "text-red-600" : "text-green-600"}`}>{fmt(cashflowMens)} €/mois</div>
-          </div>
-        </div>
 
-        <div className="grid md:grid-cols-2 gap-6 mt-4">
-          <DonutWithTotal data={donutCout} colors={COLORS} title="Coût d'acquisition initial" totalTitle="Total initial" />
-          <DonutWithTotal data={donutMensuels} colors={COLORS.slice(2)} title="Dépenses récurrentes (mensuelles)" totalTitle="Total mensuel" />
-        </div>
-      </Section>
-    </div>
+          <div className="grid md:grid-cols-2 gap-6 mt-4">
+            <DonutWithTotal data={donutCout} colors={COLORS} title="Coût d'acquisition initial" totalTitle="Total initial" />
+            <DonutWithTotal data={donutMensuels} colors={COLORS.slice(2)} title="Dépenses récurrentes (mensuelles)" totalTitle="Total mensuel" />
+          </div>
+        </Section>
+      </div>
+    </>
   );
 }
 
@@ -770,6 +799,24 @@ function CommandementsInvestisseur() {
     const s = parseFloat((surface || "0").replace(/\s/g, "").replace(/\./g, "").replace(",", "."));
     return s > 0 ? p / s : 0;
   }, [prix, surface]);
+
+  // JSON-LD for FAQ Schema
+  const faqJsonLd = {
+    "@context":"https://schema.org",
+    "@type":"FAQPage",
+    "mainEntity":[
+      {
+        "@type":"Question",
+        "name":"Comment calculer la rentabilité d’un viager ?",
+        "acceptedAnswer":{"@type":"Answer","text":"Renseignez valeur vénale, bouquet, DUH/rente, charges et horizon. Le simulateur calcule cashflows, rentes cumulées et rendement annualisé."}
+      },
+      {
+        "@type":"Question",
+        "name":"Comment simuler une SCPI en nue-propriété ?",
+        "acceptedAnswer":{"@type":"Answer","text":"Saisissez montant, décote, durée, revalorisation. La page SCPI calcule la valeur reconstituée à terme et le rendement annualisé sans revenus intermédiaires."}
+      }
+    ]
+  };
 
   // Liens utiles
   const ressources = [
@@ -874,61 +921,69 @@ function CommandementsInvestisseur() {
   ];
 
   return (
-    <div className="max-w-6xl mx-auto p-0">
-      <h1 className="text-3xl md:text-4xl font-bold text-center mb-2">
-        Les 10 commandements de l’investisseur avisé
-      </h1>
-      <p className="text-gray-600 text-center mb-8 max-w-2xl mx-auto">
-        Une page, toutes les étapes-clés : évaluer, vérifier, comparer et sécuriser votre investissement avec des sources fiables.
-      </p>
+    <>
+      <Helmet>
+        <title>Les 10 Commandements de l’investisseur – Outils & Sources</title>
+        <meta name="description" content="Une page pour tout vérifier avant d’investir : prix/m², DVF, cadastre, taux, fiscalité, loyers, charges. Liens vers les meilleures sources." />
+        <link rel="canonical" href="https://<your-domain-here>/#/commandements" />
+        <script type="application/ld+json">{JSON.stringify(faqJsonLd)}</script>
+      </Helmet>
+      <div className="max-w-6xl mx-auto p-0">
+        <h1 className="text-3xl md:text-4xl font-bold text-center mb-2">
+          Les 10 commandements de l’investisseur avisé
+        </h1>
+        <p className="text-gray-600 text-center mb-8 max-w-2xl mx-auto">
+          Une page, toutes les étapes-clés : évaluer, vérifier, comparer et sécuriser votre investissement avec des sources fiables.
+        </p>
 
-      {/* Mini-calculateur €/m² */}
-      <div className="bg-white rounded-xl shadow p-5 mb-8">
-        <h2 className="text-lg font-semibold mb-3">Calcul rapide du prix au m²</h2>
-        <div className="grid md:grid-cols-4 gap-3">
-          <label className="flex flex-col">
-            <span className="text-sm text-gray-600">Prix du bien (€)</span>
-            <input value={prix} onChange={(e) => setPrix(e.target.value)} className="border rounded-lg p-2" inputMode="decimal" />
-          </label>
-          <label className="flex flex-col">
-            <span className="text-sm text-gray-600">Surface (m²)</span>
-            <input value={surface} onChange={(e) => setSurface(e.target.value)} className="border rounded-lg p-2" inputMode="decimal" />
-          </label>
-          <div className="bg-gray-50 rounded-lg p-3 flex flex-col justify-center">
-            <div className="text-gray-500 text-sm">Prix au m² estimé</div>
-            <div className="text-xl font-semibold">{Number.isFinite(prixM2) ? prixM2.toLocaleString("fr-FR", { maximumFractionDigits: 0 }) : "—"} €/m²</div>
-          </div>
-          <div className="flex items-center">
-            <a href="https://www.meilleursagents.com/prix-immobilier/" target="_blank" rel="noopener noreferrer" className="w-full text-center rounded-lg p-3 border hover:bg-gray-50 transition">Ouvrir MeilleursAgents →</a>
+        {/* Mini-calculateur €/m² */}
+        <div className="bg-white rounded-xl shadow p-5 mb-8">
+          <h2 className="text-lg font-semibold mb-3">Calcul rapide du prix au m²</h2>
+          <div className="grid md:grid-cols-4 gap-3">
+            <label className="flex flex-col">
+              <span className="text-sm text-gray-600">Prix du bien (€)</span>
+              <input value={prix} onChange={(e) => setPrix(e.target.value)} className="border rounded-lg p-2" inputMode="decimal" />
+            </label>
+            <label className="flex flex-col">
+              <span className="text-sm text-gray-600">Surface (m²)</span>
+              <input value={surface} onChange={(e) => setSurface(e.target.value)} className="border rounded-lg p-2" inputMode="decimal" />
+            </label>
+            <div className="bg-gray-50 rounded-lg p-3 flex flex-col justify-center">
+              <div className="text-gray-500 text-sm">Prix au m² estimé</div>
+              <div className="text-xl font-semibold">{Number.isFinite(prixM2) ? prixM2.toLocaleString("fr-FR", { maximumFractionDigits: 0 }) : "—"} €/m²</div>
+            </div>
+            <div className="flex items-center">
+              <a href="https://www.meilleursagents.com/prix-immobilier/" target="_blank" rel="noopener noreferrer" className="w-full text-center rounded-lg p-3 border hover:bg-gray-50 transition">Ouvrir MeilleursAgents →</a>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Cartes didactiques */}
-      <div className="grid md:grid-cols-2 gap-5">
-        {ressources.map((r, i) => (
-          <div key={i} className="bg-white rounded-xl shadow p-5 hover:shadow-md transition">
-            <h3 className="text-xl font-semibold text-blue-700 mb-2">{r.titre}</h3>
-            <p className="text-gray-600 text-sm mb-3 leading-relaxed">{r.description}</p>
-            <ul className="space-y-1 text-sm">
-              {r.liens.map((l, j) => (
-                <li key={j}>
-                  <a href={l.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                    {l.nom}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
-      </div>
+        {/* Cartes didactiques */}
+        <div className="grid md:grid-cols-2 gap-5">
+          {ressources.map((r, i) => (
+            <div key={i} className="bg-white rounded-xl shadow p-5 hover:shadow-md transition">
+              <h3 className="text-xl font-semibold text-blue-700 mb-2">{r.titre}</h3>
+              <p className="text-gray-600 text-sm mb-3 leading-relaxed">{r.description}</p>
+              <ul className="space-y-1 text-sm">
+                {r.liens.map((l, j) => (
+                  <li key={j}>
+                    <a href={l.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                      {l.nom}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
 
-      <div className="text-center mt-10">
-        <a href="#contact" className="bg-blue-600 text-white px-6 py-3 rounded-lg shadow hover:bg-blue-700 transition">
-          Contacter l’équipe (formulaire)
-        </a>
+        <div className="text-center mt-10">
+          <a href="#contact" className="bg-blue-600 text-white px-6 py-3 rounded-lg shadow hover:bg-blue-700 transition">
+            Contacter l’équipe (formulaire)
+          </a>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -939,15 +994,10 @@ function CommandementsInvestisseur() {
 export default function App() {
   const [tab, setTab] = useState("Viager"); // default
 
+  // This useEffect is now for side-effects other than title, if any.
+  // Title management is handled by Helmet in each component.
   useEffect(() => {
-    const titleMap: { [key: string]: string } = {
-      "Location nue": "Simulateur Location – Viager & Location",
-      "Viager": "Simulateur Viager – Viager & Location",
-      "SCPI": "Simulateur SCPI – Comparateur",
-      "Local commercial": "Simulateur Local commercial – Comparateur",
-      "10 Commandements": "Les 10 Commandements de l'Investisseur",
-    };
-    document.title = titleMap[tab] || "Simulateur Immobilier";
+    // Potentially for other side-effects based on tab change
   }, [tab]);
 
   const handlePrint = () => window.print();
@@ -971,8 +1021,23 @@ export default function App() {
   
   const tabs = ["Location nue", "Viager", "SCPI", "Local commercial", "10 Commandements"];
 
+  const webAppJsonLd = {
+    "@context":"https://schema.org",
+    "@type":"WebApplication",
+    "name":"Simulateur immobilier – Viager, SCPI, Location",
+    "url":"https://<your-domain-here>/",
+    "applicationCategory":"FinanceApplication",
+    "operatingSystem":"Any",
+    "offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"}
+  };
+
   return (
-    <>
+    <HelmetProvider>
+      <Helmet>
+         <title>Simulateur Immobilier: Viager, SCPI, Location | Calculette Gratuite</title>
+         <meta name="description" content="Calculette immobilière gratuite: comparez viager (occupé, libre, vente à terme), SCPI, location nue et local commercial. Graphiques clairs, frais de notaire, cashflow, rendement." />
+         <script type="application/ld+json">{JSON.stringify(webAppJsonLd)}</script>
+      </Helmet>
       <style>{printStyles}</style>
 
       <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
@@ -1075,6 +1140,7 @@ export default function App() {
           </footer>
         </div>
       </div>
-    </>
+    </HelmetProvider>
   );
 }
+
