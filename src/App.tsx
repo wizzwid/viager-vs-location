@@ -462,7 +462,8 @@ function Viager() {
         <link rel="canonical" href="https://<your-domain-here>/#/viager" />
       </Helmet>
       <div className="grid lg:grid-cols-2 gap-6">
-        <{/* Div responsive pour les onglets Viager */}
+       <Section title="Paramètres – Viager">
+          {/* Div responsive pour les onglets Viager */}
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-2 mb-3 no-print">
             <div className="text-sm text-gray-600">Configuration</div>
             <Tabs tabs={[...modes]} active={mode} onChange={(t) => setMode(t as typeof modes[number])} />
