@@ -108,6 +108,7 @@ function Tabs({ tabs, active, onChange }: { tabs: string[]; active: string; onCh
     </div>
   );
 }
+
 function Legend({ data, colors }: { data: { name: string; value: number }[]; colors: string[] }) {
   const total = data.reduce((sum, item) => sum + item.value, 0);
   return (
