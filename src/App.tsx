@@ -1046,19 +1046,25 @@ export default function App() {
 
       <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
         <div className="max-w-6xl mx-auto p-6 space-y-6 print-max-w">
-          <header className="flex justify-between items-center no-print">
+         {/* Header mis à jour, responsive */}
+          <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 no-print">
+            {/* Titre */}
             <div>
               <h1 className="text-2xl font-bold">Simulateur Immobilier Complet</h1>
               <p className="text-sm text-gray-500">Comparez, analysez et planifiez vos investissements</p>
             </div>
-            <div className="flex items-center gap-3">
+            
+            {/* Conteneur pour Bouton + Onglets */}
+            <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 w-full md:w-auto">
+              {/* Bouton d'impression (justifié au centre sur mobile) */}
               <button
                 onClick={handlePrint}
-                className="px-4 py-2 rounded-xl text-sm font-medium bg-gray-200 text-gray-700 hover:bg-gray-300 transition shadow flex items-center"
+                className="px-4 py-2 rounded-xl text-sm font-medium bg-gray-200 text-gray-700 hover:bg-gray-300 transition shadow flex items-center justify-center"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 inline-block mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12M18 14v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4"/></svg>
                 Version Imprimable PDF
               </button>
+              {/* Le composant Tabs (qui a déjà le fix de scroll) s'insère ici */}
               <Tabs tabs={tabs} active={tab} onChange={setTab} />
             </div>
           </header>
