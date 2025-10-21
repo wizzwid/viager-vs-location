@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 
 // Configuration pour l'impression
@@ -758,6 +758,181 @@ function LocalCommercial() {
   );
 }
 
+/****************************************
+ * COMPOSANT 10 COMMANDEMENTS (Nouveau)
+ ****************************************/
+function CommandementsInvestisseur() {
+  // Mini-calculateur €/m²
+  const [prix, setPrix] = useState("250000");
+  const [surface, setSurface] = useState("50");
+  const prixM2 = useMemo(() => {
+    const p = parseFloat((prix || "0").replace(/\s/g, "").replace(/\./g, "").replace(",", "."));
+    const s = parseFloat((surface || "0").replace(/\s/g, "").replace(/\./g, "").replace(",", "."));
+    return s > 0 ? p / s : 0;
+  }, [prix, surface]);
+
+  // Liens utiles
+  const ressources = [
+    {
+      titre: "1) Évaluer le prix du bien",
+      description:
+        "Croisez DVF (transactions), baromètres, historiques d’annonces. Comparez votre €/m² au marché local.",
+      liens: [
+        { nom: "MeilleursAgents – prix/m²", url: "https://www.meilleursagents.com/prix-immobilier/" },
+        { nom: "DVF – ventes réelles", url: "https://app.dvf.etalab.gouv.fr/" },
+        { nom: "Castorus – historique d’annonces", url: "https://www.castorus.com/" },
+        { nom: "SeLoger – estimation", url: "https://estimation.seloger.com/" },
+      ],
+    },
+    {
+      titre: "2) Vérifier les taux & le financement",
+      description:
+        "Comparez les taux de crédit, l’assurance emprunteur, la durée et la modularité pour optimiser le levier.",
+      liens: [
+        { nom: "Meilleurtaux", url: "https://www.meilleurtaux.com/" },
+        { nom: "Pretto", url: "https://www.pretto.fr/" },
+        { nom: "CAFPI", url: "https://www.cafpi.fr/" },
+        { nom: "Banque de France – taux de référence", url: "https://www.banque-france.fr/statistiques/taux-et-cours/taux-dinteret-de-reference" },
+      ],
+    },
+    {
+      titre: "3) Plan cadastral & urbanisme",
+      description:
+        "Parcelles, superficies, servitudes, zonage et PLU : anticipez les contraintes de travaux/division.",
+      liens: [
+        { nom: "Cadastre.gouv.fr", url: "https://www.cadastre.gouv.fr/" },
+        { nom: "Géoportail Urbanisme", url: "https://www.geoportail-urbanisme.gouv.fr/" },
+        { nom: "Service-Public – urbanisme", url: "https://www.service-public.fr/particuliers/vosdroits/F1986" },
+      ],
+    },
+    {
+      titre: "4) Marché locatif (loyers & tension)",
+      description:
+        "Estimez loyers, vacance et profils de demande selon le quartier pour fiabiliser le cashflow.",
+      liens: [
+        { nom: "Clameur – loyers observés", url: "https://www.clameur.fr/" },
+        { nom: "SeLoger – loyers moyens", url: "https://www.seloger.com/prix-de-l-immo/location.htm" },
+        { nom: "LocService – loyers par ville", url: "https://www.locservice.fr/stats-location.html" },
+      ],
+    },
+    {
+      titre: "5) Fiscalité de l’investissement",
+      description:
+        "Projetez l’impact selon votre TMI et le régime (micro, réel, LMNP, SCPI). Testez plusieurs scénarios.",
+      liens: [
+        { nom: "Simulateurs – impots.gouv", url: "https://www.impots.gouv.fr/simulateurs" },
+        { nom: "PAP – fiscalité location", url: "https://www.pap.fr/bailleur/fiscalite" },
+        { nom: "Legifrance – textes officiels", url: "https://www.legifrance.gouv.fr/" },
+      ],
+    },
+    {
+      titre: "6) Contexte économique & démographie",
+      description:
+        "Emploi, démographie, projets urbains : la liquidité future dépend de la dynamique locale.",
+      liens: [
+        { nom: "INSEE – indicateurs locaux", url: "https://www.insee.fr/fr/statistiques/1405599" },
+        { nom: "France Stratégie – attractivité", url: "https://www.strategie.gouv.fr/" },
+      ],
+    },
+    {
+      titre: "7) Frais & charges à anticiper",
+      description:
+        "Frais de notaire, PNO, syndic, taxe foncière, entretien, CAPEX : intégrez-les dans le rendement net.",
+      liens: [
+        { nom: "Service-Public – frais de notaire", url: "https://www.service-public.fr/particuliers/vosdroits/F32360" },
+        { nom: "ANIL – charges & droits du bail", url: "https://www.anil.org/" },
+      ],
+    },
+    {
+      titre: "8) Choisir la bonne stratégie",
+      description:
+        "Nue/meublée, viager (occupé/libre/terme), SCPI, local pro : comparez rendement, fiscalité et gestion.",
+      liens: [
+        { nom: "Guide investissement – Boursorama", url: "https://www.boursorama.com/patrimoine/guide/immobilier/" },
+        { nom: "SCPI vs immobilier – Finance Héros", url: "https://finance-heros.fr/scpi-ou-immobilier-physique/" },
+      ],
+    },
+    {
+      titre: "9) Assurance emprunteur",
+      description:
+        "Comparez les délégations d’assurance et les garanties (décès, PTIA, ITT).",
+      liens: [
+        { nom: "Les Furets – assurance prêt", url: "https://www.lesfurets.com/assurance-pret" },
+        { nom: "Meilleurtaux – assurance de prêt", url: "https://www.meilleurtaux.com/assurance-de-pret.html" },
+      ],
+    },
+    {
+      titre: "10) S’entourer & valider",
+      description:
+        "Faites relire votre dossier (notaire, expert, CCI) et croisez toujours plusieurs sources.",
+      liens: [
+        { nom: "Notaires de France", url: "https://www.notaires.fr/" },
+        { nom: "Experts immobiliers (FNAIM)", url: "https://www.experts-fnaim.org/" },
+        { nom: "CCI – accompagnement", url: "https://www.cci.fr/" },
+      ],
+    },
+  ];
+
+  return (
+    <div className="max-w-6xl mx-auto p-0">
+      <h1 className="text-3xl md:text-4xl font-bold text-center mb-2">
+        Les 10 commandements de l’investisseur avisé
+      </h1>
+      <p className="text-gray-600 text-center mb-8 max-w-2xl mx-auto">
+        Une page, toutes les étapes-clés : évaluer, vérifier, comparer et sécuriser votre investissement avec des sources fiables.
+      </p>
+
+      {/* Mini-calculateur €/m² */}
+      <div className="bg-white rounded-xl shadow p-5 mb-8">
+        <h2 className="text-lg font-semibold mb-3">Calcul rapide du prix au m²</h2>
+        <div className="grid md:grid-cols-4 gap-3">
+          <label className="flex flex-col">
+            <span className="text-sm text-gray-600">Prix du bien (€)</span>
+            <input value={prix} onChange={(e) => setPrix(e.target.value)} className="border rounded-lg p-2" inputMode="decimal" />
+          </label>
+          <label className="flex flex-col">
+            <span className="text-sm text-gray-600">Surface (m²)</span>
+            <input value={surface} onChange={(e) => setSurface(e.target.value)} className="border rounded-lg p-2" inputMode="decimal" />
+          </label>
+          <div className="bg-gray-50 rounded-lg p-3 flex flex-col justify-center">
+            <div className="text-gray-500 text-sm">Prix au m² estimé</div>
+            <div className="text-xl font-semibold">{Number.isFinite(prixM2) ? prixM2.toLocaleString("fr-FR", { maximumFractionDigits: 0 }) : "—"} €/m²</div>
+          </div>
+          <div className="flex items-center">
+            <a href="https://www.meilleursagents.com/prix-immobilier/" target="_blank" rel="noopener noreferrer" className="w-full text-center rounded-lg p-3 border hover:bg-gray-50 transition">Ouvrir MeilleursAgents →</a>
+          </div>
+        </div>
+      </div>
+
+      {/* Cartes didactiques */}
+      <div className="grid md:grid-cols-2 gap-5">
+        {ressources.map((r, i) => (
+          <div key={i} className="bg-white rounded-xl shadow p-5 hover:shadow-md transition">
+            <h3 className="text-xl font-semibold text-blue-700 mb-2">{r.titre}</h3>
+            <p className="text-gray-600 text-sm mb-3 leading-relaxed">{r.description}</p>
+            <ul className="space-y-1 text-sm">
+              {r.liens.map((l, j) => (
+                <li key={j}>
+                  <a href={l.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                    {l.nom}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+
+      <div className="text-center mt-10">
+        <a href="#contact" className="bg-blue-600 text-white px-6 py-3 rounded-lg shadow hover:bg-blue-700 transition">
+          Contacter l’équipe (formulaire)
+        </a>
+      </div>
+    </div>
+  );
+}
+
+
 /*********************
  * APP PRINCIPALE
  *********************/
@@ -765,17 +940,36 @@ export default function App() {
   const [tab, setTab] = useState("Viager"); // default
 
   useEffect(() => {
-    const title = tab === "Location nue"
-      ? "Simulateur Location – Viager & Location"
-      : tab === "Viager"
-      ? "Simulateur Viager – Viager & Location"
-      : tab === "SCPI"
-      ? "Simulateur SCPI – Comparateur"
-      : "Simulateur Local commercial – Comparateur";
-    document.title = title;
+    const titleMap: { [key: string]: string } = {
+      "Location nue": "Simulateur Location – Viager & Location",
+      "Viager": "Simulateur Viager – Viager & Location",
+      "SCPI": "Simulateur SCPI – Comparateur",
+      "Local commercial": "Simulateur Local commercial – Comparateur",
+      "10 Commandements": "Les 10 Commandements de l'Investisseur",
+    };
+    document.title = titleMap[tab] || "Simulateur Immobilier";
   }, [tab]);
 
   const handlePrint = () => window.print();
+
+  const renderTabContent = () => {
+    switch (tab) {
+      case "Location nue":
+        return <LocationNue />;
+      case "Viager":
+        return <Viager />;
+      case "SCPI":
+        return <SCPI />;
+      case "Local commercial":
+        return <LocalCommercial />;
+      case "10 Commandements":
+        return <CommandementsInvestisseur />;
+      default:
+        return null;
+    }
+  };
+  
+  const tabs = ["Location nue", "Viager", "SCPI", "Local commercial", "10 Commandements"];
 
   return (
     <>
@@ -785,8 +979,8 @@ export default function App() {
         <div className="max-w-6xl mx-auto p-6 space-y-6 print-max-w">
           <header className="flex justify-between items-center no-print">
             <div>
-              <h1 className="text-2xl font-bold">Simulateur Viager, Location, SCPI & Local commercial</h1>
-              <p className="text-sm text-gray-500">Comparateur interactif avec frais de notaire</p>
+              <h1 className="text-2xl font-bold">Simulateur Immobilier Complet</h1>
+              <p className="text-sm text-gray-500">Comparez, analysez et planifiez vos investissements</p>
             </div>
             <div className="flex items-center gap-3">
               <button
@@ -796,7 +990,7 @@ export default function App() {
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 inline-block mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12M18 14v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4"/></svg>
                 Version Imprimable PDF
               </button>
-              <Tabs tabs={["Location nue", "Viager", "SCPI", "Local commercial"]} active={tab} onChange={setTab} />
+              <Tabs tabs={tabs} active={tab} onChange={setTab} />
             </div>
           </header>
 
@@ -806,7 +1000,7 @@ export default function App() {
             <p className="text-sm text-gray-500">Date du rapport : {new Date().toLocaleDateString("fr-FR")}</p>
           </div>
 
-          {tab === "Location nue" ? <LocationNue /> : tab === "Viager" ? <Viager /> : tab === "SCPI" ? <SCPI /> : <LocalCommercial />}
+          {renderTabContent()}
 
           {/* À PROPOS */}
           <section id="apropos" className="mt-16 px-4 max-w-4xl mx-auto">
