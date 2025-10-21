@@ -353,58 +353,91 @@ function LocationNue() {
  * COMPOSANT VIAGER
  *********************/
 function Viager() {
-  const [valeur, setValeur] = useState("292000");
+  // Modes
+  const modes = ["Viager occupé", "Viager libre", "Vente à terme"] as const;
+  const [mode, setMode] = useState<typeof modes[number]>("Viager occupé");
+
+  // Paramètres communs
+  const [valeur, setValeur] = useState("292000"); // Valeur vénale
   const [age, setAge] = useState("71");
   const [sexe, setSexe] = useState("Femme");
-  const [loyer, setLoyer] = useState("740");
-  const [taux, setTaux] = useState("2");
+  const [taux, setTaux] = useState("2"); // taux d'actualisation
   const [bouquetPct, setBouquetPct] = useState("30");
-  const [index, setIndex] = useState("1,1");
+  const [index, setIndex] = useState("1,1"); // indexation rente
   const [charges, setCharges] = useState("1200");
   const [taxe, setTaxe] = useState("1300");
-  // Nouveaux paramètres pour rendement à terme
+  // Spécifique occupé (DUH basé sur loyer) et libre (loyer optionnel pour info DUH=0)
+  const [loyer, setLoyer] = useState("740");
+  // Projection marché
   const [hausseImmo, setHausseImmo] = useState("1,5"); // %/an
   const [fraisVentePct, setFraisVentePct] = useState("6"); // % du prix de revente
+  // Vente à terme
+  const [dureeTerme, setDureeTerme] = useState("15"); // ans
 
+  // Conversions
   const vV = toNum(valeur);
   const vAge = toNum(age);
-  const vLoyer = toNum(loyer);
   const vTaux = toNum(taux);
+  const vBouquetPct = toNum(bouquetPct);
+  const vIndex = toNum(index);
   const vCharges = toNum(charges);
   const vTaxe = toNum(taxe);
   const vHausse = Math.max(0, toNum(hausseImmo)) / 100;
   const vFraisVente = Math.max(0, toNum(fraisVentePct)) / 100;
+  const vLoyer = toNum(loyer);
+  const vDureeTerme = Math.max(1, toNum(dureeTerme));
 
-  const years = getEsperanceVie(vAge, sexe);
-  const valeurDUH = presentValueAnnuity(vLoyer, years, vTaux);
-  const valeurOccupee = Math.max(0, vV - valeurDUH);
-  const decotePct = vV > 0 ? (valeurDUH / vV) * 100 : 0;
+  // Horizon : Occupé/Libre -> espérance de vie; Vente à terme -> durée du terme
+  const yearsEV = getEsperanceVie(vAge, sexe);
+  const horizonYears = mode === "Vente à terme" ? vDureeTerme : yearsEV;
 
-  const vBouquetPct = toNum(bouquetPct);
-  const capBouquet = (vBouquetPct / 100) * valeurOccupee;
-  const capRente = valeurOccupee - capBouquet;
-  const renteMensuelle = solveMonthlyFromPV(capRente, years, vTaux, toNum(index));
+  // DUH selon mode
+  const valeurDUH = mode === "Viager occupé" ? presentValueAnnuity(vLoyer, yearsEV, vTaux) : 0;
 
-  const fraisNotaire = calculateNotaryFees(valeurOccupee);
-  const coutTotalRente = renteMensuelle * years * 12; // non actualisé
-  const coutChargesTaxes = (vCharges + vTaxe) * years; // cumul simple sur espérance de vie
-  const coutTotalInvestisseur = capBouquet + fraisNotaire + coutTotalRente + coutChargesTaxes;
+  // Valeur occupée (pour occupé) ou pleine (libre/terme)
+  const baseValeur = mode === "Viager occupé" ? Math.max(0, vV - valeurDUH) : vV;
 
-  // Valeur de revente à l'espérance de vie, avec hausse des prix
-  const prixFutur = vV * Math.pow(1 + vHausse, years);
+  // Répartition bouquet / capital rente (ou capital à terme)
+  const capBouquet = (vBouquetPct / 100) * baseValeur;
+  const capRenteOuTerme = Math.max(0, baseValeur - capBouquet);
+
+  // Rente mensuelle (Occupé/Libre) via VA -> flux indexé
+  const renteMensuelle = mode !== "Vente à terme" ? solveMonthlyFromPV(capRenteOuTerme, yearsEV, vTaux, vIndex) : 0;
+
+  // Vente à terme : mensualité fixe sur durée donnée (sans intérêt implicite), possibilité d'ajouter indice via info
+  const mensualiteTerme = mode === "Vente à terme" ? (capRenteOuTerme / (vDureeTerme * 12)) : 0;
+
+  // Frais de notaire sur la base achetée (occupé = valeur occupée)
+  const fraisNotaire = calculateNotaryFees(baseValeur);
+
+  // Coûts récurrents (débirentier)
+  const depensesMensuelles = mode === "Vente à terme" ? (mensualiteTerme + (vCharges + vTaxe) / 12)
+                            : (renteMensuelle + (vCharges + vTaxe) / 12);
+
+  // Totaux cumulés (non actualisés) sur l'horizon
+  const totalRentesOuTermes = (mode === "Vente à terme" ? mensualiteTerme : renteMensuelle) * horizonYears * 12;
+  const coutChargesTaxes = (vCharges + vTaxe) * horizonYears; // cumul simple
+  const coutTotalInvestisseur = capBouquet + fraisNotaire + totalRentesOuTermes + coutChargesTaxes;
+
+  // Valeur de revente au terme (EV ou durée fixe) avec hausse marché et frais de vente
+  const prixFutur = vV * Math.pow(1 + vHausse, horizonYears);
   const produitNetVente = prixFutur * (1 - vFraisVente);
 
-  // Rendement annualisé approximatif (type TRI simplifié sans actualisation des flux intermédiaires)
-  const rendementAnnualise = coutTotalInvestisseur > 0 ? (Math.pow(produitNetVente / coutTotalInvestisseur, 1 / years) - 1) * 100 : 0;
+  // Rendement annualisé simple (type TRI approximatif)
+  const rendementAnnualise = coutTotalInvestisseur > 0 ? (Math.pow(produitNetVente / coutTotalInvestisseur, 1 / horizonYears) - 1) * 100 : 0;
 
+  // Décote affichage (seulement en occupé)
+  const decotePct = vV > 0 ? (valeurDUH / vV) * 100 : 0;
+
+  // Données donuts
   const donutCoutTotal = [
-    { name: "Valeur DUH (Décote)", value: valeurDUH },
+    ...(mode === "Viager occupé" ? [{ name: "Valeur DUH (Décote)", value: valeurDUH }] : []),
     { name: "Bouquet", value: capBouquet },
-    { name: "Capital Rente", value: capRente },
+    { name: mode === "Vente à terme" ? "Capital à terme" : "Capital Rente", value: capRenteOuTerme },
     { name: "Frais de notaire", value: fraisNotaire },
   ];
   const donutCoutMensuels = [
-    { name: "Rente mensuelle", value: renteMensuelle },
+    { name: mode === "Vente à terme" ? "Mensualité (terme)" : "Rente mensuelle", value: mode === "Vente à terme" ? mensualiteTerme : renteMensuelle },
     { name: "Charges (mens.)", value: vCharges / 12 },
     { name: "Taxe foncière (mens.)", value: vTaxe / 12 },
   ];
@@ -412,16 +445,26 @@ function Viager() {
   return (
     <div className="grid lg:grid-cols-2 gap-6">
       <Section title="Paramètres – Viager">
+        <div className="flex items-center justify-between mb-3 no-print">
+          <div className="text-sm text-gray-600">Configuration</div>
+          <Tabs tabs={[...modes]} active={mode} onChange={(t) => setMode(t as typeof modes[number])} />
+        </div>
         <div className="space-y-3">
           <Field label="Valeur vénale (marché)" suffix="€" value={valeur} onChange={setValeur} />
           <Field label="Âge du crédirentier" suffix="ans" value={age} onChange={setAge} />
           <Field label="Sexe" value={sexe} onChange={setSexe} />
-          <Field label="Espérance de vie estimée" suffix="ans" value={years} onChange={() => {}} readOnly={true} decimals={1} />
+          <Field label="Espérance de vie estimée" suffix="ans" value={yearsEV} onChange={() => {}} readOnly={true} decimals={1} />
           <div className="h-0.5 bg-gray-100 my-4"></div>
-          <Field label="Loyer mensuel estimé" suffix="€/mois" value={loyer} onChange={setLoyer} help="Utilisé pour calculer le DUH" />
-          <Field label="Taux d'actualisation" suffix="%/an" value={taux} onChange={setTaux} help="Taux pour le DUH et la rente (souvent 2-4%)" decimals={2} />
-          <Field label="Bouquet (sur valeur occupée)" suffix="%" value={bouquetPct} onChange={setBouquetPct} help="Pourcentage de la valeur occupée versé au comptant" />
-          <Field label="Taux de révision rente" suffix="%/an" value={index} onChange={setIndex} decimals={2} />
+          {mode === "Viager occupé" && (
+            <Field label="Loyer mensuel estimé (pour DUH)" suffix="€/mois" value={loyer} onChange={setLoyer} help="Utilisé pour calculer la décote DUH" />
+          )}
+          <Field label="Taux d'actualisation" suffix="%/an" value={taux} onChange={setTaux} help="Taux pour DUH (si occupé) et la rente" decimals={2} />
+          <Field label="Bouquet (sur base)" suffix="%" value={bouquetPct} onChange={setBouquetPct} />
+          {mode !== "Vente à terme" ? (
+            <Field label="Taux de révision rente" suffix="%/an" value={index} onChange={setIndex} decimals={2} />
+          ) : (
+            <Field label="Durée de paiement (vente à terme)" suffix="ans" value={dureeTerme} onChange={setDureeTerme} />
+          )}
           <div className="h-0.5 bg-gray-100 my-4"></div>
           <Field label="Charges (annuelles)" suffix="€/an" value={charges} onChange={setCharges} />
           <Field label="Taxe foncière (annuelle)" suffix="€/an" value={taxe} onChange={setTaxe} />
@@ -433,24 +476,32 @@ function Viager() {
 
       <Section title="Résultats – Viager">
         <div className="grid grid-cols-3 gap-3 text-sm">
-          <div className="bg-gray-50 p-3 rounded-xl"><div className="text-gray-500">Décote (DUH)</div><div className="font-semibold">{fmt(decotePct, 1)} %</div></div>
+          {mode === "Viager occupé" && (
+            <div className="bg-gray-50 p-3 rounded-xl"><div className="text-gray-500">Décote (DUH)</div><div className="font-semibold">{fmt(decotePct, 1)} %</div></div>
+          )}
           <div className="bg-gray-50 p-3 rounded-xl"><div className="text-gray-500">Montant du Bouquet</div><div className="font-semibold">{fmt(capBouquet)} €</div></div>
-          <div className="bg-gray-50 p-3 rounded-xl"><div className="text-gray-500">Rente mensuelle</div><div className="font-semibold">{fmt(renteMensuelle)} €/mois</div></div>
+          <div className="bg-gray-50 p-3 rounded-xl">
+            <div className="text-gray-500">{mode === "Vente à terme" ? "Mensualité (terme)" : "Rente mensuelle"}</div>
+            <div className="font-semibold">{fmt(mode === "Vente à terme" ? mensualiteTerme : renteMensuelle)} €/mois</div>
+          </div>
         </div>
 
         <div className="bg-gray-50 p-3 rounded-xl text-sm mt-3">
-          <div className="text-gray-700 font-semibold mb-1">Projection à l'échéance ({fmt(years, 1)} ans)</div>
+          <div className="text-gray-700 font-semibold mb-1">Projection à l'échéance ({fmt(horizonYears, 1)} ans)</div>
           <div className="flex justify-between"><span>Prix futur estimé :</span><span className="font-medium">{fmt(prixFutur)} €</span></div>
           <div className="flex justify-between"><span>Produit net de vente :</span><span className="font-medium">{fmt(produitNetVente)} €</span></div>
-          <div className="flex justify-between mt-1 pt-1 border-t border-gray-200"><span>Total déboursé (bouquet + frais + rentes + charges/taxes) :</span><span className="font-medium">{fmt(coutTotalInvestisseur)} €</span></div>
+          <div className="flex justify-between mt-1 pt-1 border-t border-gray-200"><span>Total déboursé (bouquet + frais + rentes/terme + charges/taxes) :</span><span className="font-medium">{fmt(coutTotalInvestisseur)} €</span></div>
           <div className="flex justify-between mt-1 pt-1 border-t border-gray-200"><span className="font-bold">Rendement annualisé estimé :</span><span className="font-bold">{fmt(rendementAnnualise, 2)} %</span></div>
         </div>
 
         <div className="grid md:grid-cols-2 gap-6 mt-4">
-          <DonutWithTotal data={donutCoutTotal} colors={COLORS} title="Répartition de la Valeur Vénale" totalTitle="Total Vénale + Frais" />
+          <DonutWithTotal data={donutCoutTotal} colors={COLORS} title={mode === "Viager occupé" ? "Répartition de la Valeur Vénale" : "Structure de l'opération"} totalTitle="Total Vénale + Frais" />
           <DonutWithTotal data={donutCoutMensuels} colors={COLORS.slice(1)} title="Dépenses récurrentes (mensuelles)" totalTitle="Total mensuel" />
         </div>
-        <div className="text-center text-xs text-gray-500 mt-4">Coût total estimé de la rente (non actualisé) sur {fmt(years, 1)} ans: {fmt(coutTotalRente)} €</div>
+
+        {mode !== "Vente à terme" && (
+          <div className="text-center text-xs text-gray-500 mt-4">Coût total estimé de la rente (non actualisé) sur {fmt(yearsEV, 1)} ans: {fmt(renteMensuelle * yearsEV * 12)} €</div>
+        )}
       </Section>
     </div>
   );
