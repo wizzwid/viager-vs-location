@@ -89,22 +89,25 @@ function Field({
 
 function Tabs({ tabs, active, onChange }: { tabs: string[]; active: string; onChange: (t: string) => void }) {
   return (
-    <div className="inline-flex rounded-2xl bg-gray-100 p-1 no-print">
-      {tabs.map((t) => (
-        <button
-          key={t}
-          onClick={() => onChange(t)}
-          className={`px-4 py-2 rounded-xl text-sm font-medium transition ${
-            active === t ? "bg-white shadow" : "text-gray-600 hover:text-gray-900"
-          }`}
-        >
-          {t}
-        </button>
-      ))}
+    // Ce conteneur permet aux onglets de prendre l'espace disponible et de défiler
+    <div className="flex-1 min-w-0 overflow-x-auto no-print">
+      <div className="inline-flex rounded-2xl bg-gray-100 p-1">
+        {tabs.map((t) => (
+          <button
+            key={t}
+            onClick={() => onChange(t)}
+            // "whitespace-nowrap" évite que le texte des onglets aille à la ligne
+            className={`px-4 py-2 rounded-xl text-sm font-medium transition whitespace-nowrap ${
+              active === t ? "bg-white shadow" : "text-gray-600 hover:text-gray-900"
+            }`}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
-
 function Legend({ data, colors }: { data: { name: string; value: number }[]; colors: string[] }) {
   const total = data.reduce((sum, item) => sum + item.value, 0);
   return (
