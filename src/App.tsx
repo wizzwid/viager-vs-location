@@ -1148,8 +1148,17 @@ export default function App() {
           </section>
 
           <footer className="text-xs text-gray-400 text-center mt-8 no-print">
-            Données indicatives — calculs simplifiés. Consultez un notaire / CGP / expert pour un conseil personnalisé.
-          </footer>
+  Données indicatives — calculs simplifiés. Consultez un notaire / CGP / expert pour un conseil personnalisé.
+  <br />
+  <a
+    href="https://wizzwid.github.io/viager-vs-location/sitemap.html"
+    target="_blank"
+    rel="noopener noreferrer"
+    className="text-gray-400 hover:text-gray-600 underline mt-1 inline-block"
+  >
+    Plan du site
+  </a>
+</footer>
         </div>
       </div>
     </HelmetProvider>
