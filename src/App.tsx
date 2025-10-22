@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
-import { Helmet, HelmetProvider } from "https://esm.sh/react-helmet-async";
+import { Helmet, HelmetProvider } from 'react-helmet-async'; // Changed this line
 
 // Configuration pour l'impression
 const printStyles = `
@@ -245,8 +245,8 @@ function LocationNue() {
   const [taxe, setTaxe] = useState("1300");
   // Nouveaux champs
   const [travauxInit, setTravauxInit] = useState("0"); // travaux initiaux payés cash
-  const [tmiLoc, setTmiLoc] = useState("30");          // TMI IR %
-  const [psLoc, setPsLoc] = useState("17,2");          // PS %
+  const [tmiLoc, setTmiLoc] = useState("30");         // TMI IR %
+  const [psLoc, setPsLoc] = useState("17,2");         // PS %
 
   const vPrix = toNum(prix);
   const vApport = toNum(apport);
@@ -424,7 +424,7 @@ function Viager() {
 
   // Coûts récurrents (débirentier)
   const depensesMensuelles = mode === "Vente à terme" ? (mensualiteTerme + (vCharges + vTaxe) / 12)
-                            : (renteMensuelle + (vCharges + vTaxe) / 12);
+    : (renteMensuelle + (vCharges + vTaxe) / 12);
 
   // Totaux cumulés (non actualisés) sur l'horizon
   const totalRentesOuTermes = (mode === "Vente à terme" ? mensualiteTerme : renteMensuelle) * horizonYears * 12;
@@ -462,7 +462,7 @@ function Viager() {
         <link rel="canonical" href="https://<your-domain-here>/#/viager" />
       </Helmet>
       <div className="grid lg:grid-cols-2 gap-6">
-       <Section title="Paramètres – Viager">
+        <Section title="Paramètres – Viager">
           {/* Div responsive pour les onglets Viager */}
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-2 mb-3 no-print">
             <div className="text-sm text-gray-600">Configuration</div>
@@ -696,9 +696,9 @@ function LocalCommercial() {
   const [taux, setTaux] = useState("3");
   const [assurance, setAssurance] = useState("0,30");
   const [duree, setDuree] = useState("20");
-  const [loyer, setLoyer] = useState("1500");     // €/mois
-  const [charges, setCharges] = useState("2000");  // €/an
-  const [taxe, setTaxe] = useState("1500");        // €/an
+  const [loyer, setLoyer] = useState("1500");   // €/mois
+  const [charges, setCharges] = useState("2000"); // €/an
+  const [taxe, setTaxe] = useState("1500");       // €/an
 
   const vPrix = toNum(prix);
   const vApport = toNum(apport);
@@ -994,6 +994,59 @@ function CommandementsInvestisseur() {
 }
 
 
+/****************************************
+ * COMPOSANT CONTACT (Lazy Load)
+ ****************************************/
+function ContactSection() {
+  const [showForm, setShowForm] = useState(false);
+
+  return (
+    <section id="contact" className="mt-16 px-4 max-w-3xl mx-auto">
+      <h2 className="text-2xl font-semibold mb-4 text-center">Contact</h2>
+      <p className="text-gray-600 text-center mb-6">
+        Une question, une suggestion ou un cas à partager ?
+        <br />
+        {showForm
+          ? "Remplissez le formulaire ci-dessous, nous vous répondrons rapidement."
+          : "Cliquez sur le bouton pour afficher le formulaire."}
+      </p>
+
+      {showForm ? (
+        <>
+          {/* L'iframe n'est rendu qu'après le clic */}
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            <iframe
+              src="https://docs.google.com/forms/d/e/1FAIpQLSdXirX0dD0kXFXnGHGIu6nCEvbMGtOg8oTMbqg69QPHqoip6A/viewform?embedded=true"
+              width="100%"
+              height="900"
+              frameBorder={0}
+              marginHeight={0}
+              marginWidth={0}
+              title="Formulaire de contact Viager vs Location"
+            >
+              Chargement…
+            </iframe>
+          </div>
+          <p className="text-xs text-gray-500 mt-3 text-center">
+            Ce formulaire est protégé par Google Forms (validation automatique et anti-spam intégrés).
+          </p>
+        </>
+      ) : (
+        // Bouton qui remplace le formulaire au chargement initial
+        <div className="text-center">
+          <button
+            onClick={() => setShowForm(true)}
+            className="bg-blue-600 text-white px-6 py-3 rounded-lg shadow hover:bg-blue-700 transition"
+          >
+            Afficher le formulaire de contact
+          </button>
+        </div>
+      )}
+    </section>
+  );
+}
+
+
 /*********************
  * APP PRINCIPALE
  *********************/
@@ -1040,15 +1093,15 @@ export default function App() {
   return (
     <HelmetProvider>
       <Helmet>
-         <title>Simulateur Immobilier: Viager, SCPI, Location | Calculette Gratuite</title>
-         <meta name="description" content="Calculette immobilière gratuite: comparez viager (occupé, libre, vente à terme), SCPI, location nue et local commercial. Graphiques clairs, frais de notaire, cashflow, rendement." />
-         <script type="application/ld+json">{JSON.stringify(webAppJsonLd)}</script>
+        <title>Simulateur Immobilier: Viager, SCPI, Location | Calculette Gratuite</title>
+        <meta name="description" content="Calculette immobilière gratuite: comparez viager (occupé, libre, vente à terme), SCPI, location nue et local commercial. Graphiques clairs, frais de notaire, cashflow, rendement." />
+        <script type="application/ld+json">{JSON.stringify(webAppJsonLd)}</script>
       </Helmet>
       <style>{printStyles}</style>
 
       <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
         <div className="max-w-6xl mx-auto p-6 space-y-6 print-max-w">
-         {/* Header mis à jour, responsive */}
+          {/* Header mis à jour, responsive */}
           <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 no-print">
             {/* Titre */}
             <div>
@@ -1085,7 +1138,7 @@ export default function App() {
             <div className="bg-white rounded-lg shadow p-6 leading-relaxed">
               <p className="mb-4">
                 <strong>Viager vs Location</strong> est un outil d’aide à la décision conçu pour les
-                <strong> investisseurs immobiliers</strong> qui souhaitent comparer clairement la rentabilité
+                <strong> investisseurs immobiliers</strong> qui souhaitent comparer clearly la rentabilité
                 entre plusieurs stratégies : <em>viager, location, local commercial et SCPI</em>.
               </p>
               <p className="mb-4">
@@ -1120,45 +1173,21 @@ export default function App() {
             </div>
           </section>
 
-          {/* CONTACT */}
-          <section id="contact" className="mt-16 px-4 max-w-3xl mx-auto">
-            <h2 className="text-2xl font-semibold mb-4 text-center">Contact</h2>
-            <p className="text-gray-600 text-center mb-6">
-              Une question, une suggestion ou un cas à partager ?
-              Remplissez le formulaire ci-dessous, nous vous répondrons rapidement.
-            </p>
-
-            <div className="bg-white rounded-lg shadow overflow-hidden">
-              <iframe
-                src="https://docs.google.com/forms/d/e/1FAIpQLSdXirX0dD0kXFXnGHGIu6nCEvbMGtOg8oTMbqg69QPHqoip6A/viewform?embedded=true"
-                width="100%"
-                height="900"
-                frameBorder={0}
-                marginHeight={0}
-                marginWidth={0}
-                title="Formulaire de contact Viager vs Location"
-              >
-                Chargement…
-              </iframe>
-            </div>
-
-            <p className="text-xs text-gray-500 mt-3 text-center">
-              Ce formulaire est protégé par Google Forms (validation automatique et anti-spam intégrés).
-            </p>
-          </section>
+          {/* CONTACT (chargement à la demande) */}
+          <ContactSection />
 
           <footer className="text-xs text-gray-400 text-center mt-8 no-print">
-  Données indicatives — calculs simplifiés. Consultez un notaire / CGP / expert pour un conseil personnalisé.
-  <br />
-  <a
-    href="https://wizzwid.github.io/viager-vs-location/sitemap.html"
-    target="_blank"
-    rel="noopener noreferrer"
-    className="text-gray-400 hover:text-gray-600 underline mt-1 inline-block"
-  >
-    Plan du site
-  </a>
-</footer>
+            Données indicatives — calculs simplifiés. Consultez un notaire / CGP / expert pour un conseil personnalisé.
+            <br />
+            <a
+              href="https://wizzwid.github.io/viager-vs-location/sitemap.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-gray-400 hover:text-gray-600 underline mt-1 inline-block"
+            >
+              Plan du site
+            </a>
+          </footer>
         </div>
       </div>
     </HelmetProvider>
