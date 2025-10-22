@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
-import { Helmet, HelmetProvider } from 'react-helmet-async'; // Changed this line
+import { Helmet, HelmetProvider } from "https://esm.sh/react-helmet-async"; // Reverted this line
 
 // Configuration pour l'impression
 const printStyles = `
@@ -1193,4 +1193,6 @@ export default function App() {
     </HelmetProvider>
   );
 }
+
+"
 
