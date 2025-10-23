@@ -1,32 +1,4 @@
-import React, { useState, useEffect,
-  useEffect(() => {
-    if (!didAutofill.current && (!taux || taux.trim() === "")) {
-      setTaux(toFrPct(defaults.viagerDiscount));
-      didAutofill.current = true;
-    }
-  }, [defaults.viagerDiscount]);
-
-  useEffect(() => {
-    if (!didAutofill.current && (!taux || taux.trim() === "")) {
-      setTaux(toFrPct(defaults.scpi));
-      didAutofill.current = true;
-    }
-  }, [defaults.scpi]);
-
-  useEffect(() => {
-    if (!didAutofill.current && (!taux || taux.trim() === "")) {
-      setTaux(toFrPct(defaults.commercial));
-      didAutofill.current = true;
-    }
-  }, [defaults.commercial]);
-
-  useEffect(() => {
-    if (!didAutofill.current && (!taux || taux.trim() === "")) {
-      setTaux(toFrPct(defaults.residential));
-      didAutofill.current = true;
-    }
-  }, [defaults.residential]);
- useMemo, createContext, useContext, useRef } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import { Helmet, HelmetProvider } from "https://esm.sh/react-helmet-async"; // Reverted this line
 
@@ -40,75 +12,6 @@ const printStyles = `
     .bg-gray-50, .bg-gray-100 { background-color: #f8f8f8 !important; }
   }
 `;
-
-
-/*********************
- * TAUX BCE + DÉFAUTS MARCHÉ
- *********************/
-type Rates = {
-  bce: number | null;
-  asOf: string | null;
-  defaults: {
-    residential: number;
-    commercial: number;
-    scpi: number;
-    viagerDiscount: number;
-  };
-};
-
-const RatesContext = createContext<Rates>({
-  bce: null,
-  asOf: null,
-  defaults: { residential: 3.3, commercial: 3.6, scpi: 3.5, viagerDiscount: 4.0 },
-});
-
-function round2(n: number) { return Math.round(n * 100) / 100; }
-function computeDefaults(bce: number | null) {
-  const base = bce ?? 3.0;
-  return {
-    residential: round2(base + 0.30),
-    commercial:  round2(base + 0.60),
-    scpi:        round2(base + 0.50),
-    viagerDiscount: round2(base + 1.00),
-  };
-}
-
-function useBceRate() {
-  const [state, setState] = React.useState<{bce: number | null; asOf: string | null}>({ bce: null, asOf: null });
-
-  React.useEffect(() => {
-    const url = "https://data-api.ecb.europa.eu/service/data/MIR/MIR.M.FR.B.A2C.A.C.A.2250.EUR.N?lastNObservations=1&format=sdmx-json";
-    fetch(url)
-      .then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
-      .then(j => {
-        const series = j?.data?.dataSets?.[0]?.series?.["0:0:0:0:0:0:0:0"] ?? j?.data?.dataSets?.[0]?.series?.["0:0:0:0:0:0:0"];
-        const key = series ? Object.keys(series.observations)[0] : null;
-        if (!key) throw new Error("No data");
-        const idx = parseInt(key, 10);
-        const val = Number(series.observations[key][0]);
-        const asOf = j.data.structure.dimensions.observation[0].values[idx].id;
-        setState({ bce: val, asOf });
-      })
-      .catch(() => setState(s => s));
-  }, []);
-
-  return state;
-}
-
-function RatesProvider({ children }: { children: React.ReactNode }) {
-  const { bce, asOf } = useBceRate();
-  const defaults = computeDefaults(bce);
-  return (
-    <RatesContext.Provider value={{ bce, asOf, defaults }}>
-      {children}
-    </RatesContext.Provider>
-  );
-}
-
-function toFrPct(n: number) {
-  return n.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
 
 /*********************
  * UTILITAIRES GÉNÉRAUX
@@ -332,9 +235,6 @@ const COLORS = ["#3559E0", "#F2C94C", "#E67E22", "#27AE60"];
  * COMPOSANT LOCATION NUE
  *********************/
 function LocationNue() {
-  const { defaults, asOf } = useContext(RatesContext);
-  const didAutofill = useRef(false);
-
   const [prix, setPrix] = useState("292000");
   const [apport, setApport] = useState("72000");
   const [taux, setTaux] = useState("2,5");
@@ -465,9 +365,6 @@ function LocationNue() {
  * COMPOSANT VIAGER
  *********************/
 function Viager() {
-  const { defaults, asOf } = useContext(RatesContext);
-  const didAutofill = useRef(false);
-
   // Modes
   const modes = ["Viager occupé", "Viager libre", "Vente à terme"] as const;
   const [mode, setMode] = useState<typeof modes[number]>("Viager occupé");
@@ -634,9 +531,6 @@ function Viager() {
  * COMPOSANT SCPI (corrigé)
  *********************/
 function SCPI() {
-  const { defaults, asOf } = useContext(RatesContext);
-  const didAutofill = useRef(false);
-
   // Investissement (montant déboursé = capital net + frais de souscription)
   const [montant, setMontant] = useState("50000");
   const [td, setTd] = useState("5");
@@ -796,9 +690,6 @@ function SCPI() {
  * COMPOSANT LOCAL COMMERCIAL (nouveau)
  *********************/
 function LocalCommercial() {
-  const { defaults, asOf } = useContext(RatesContext);
-  const didAutofill = useRef(false);
-
   // Hypothèses d'entrée
   const [prix, setPrix] = useState("250000");
   const [apport, setApport] = useState("50000");
@@ -906,8 +797,6 @@ function LocalCommercial() {
  * COMPOSANT 10 COMMANDEMENTS (Nouveau)
  ****************************************/
 function CommandementsInvestisseur() {
-  const { bce, asOf, defaults } = useContext(RatesContext);
-
   // Mini-calculateur €/m²
   const [prix, setPrix] = useState("250000");
   const [surface, setSurface] = useState("50");
@@ -1039,38 +928,6 @@ function CommandementsInvestisseur() {
 
   return (
     <>
-        <div className="bg-white rounded-xl shadow p-4 mb-6">
-          <div className="text-sm text-gray-500 mb-2">
-            Taux du moment {asOf ? `(données BCE ${asOf})` : ""}
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
-            <div className="bg-gray-50 rounded-lg p-3">
-              <div className="text-gray-500">BCE (APRC FR)</div>
-              <div className="font-semibold">{bce !== null ? toFrPct(bce) : "—"} %</div>
-            </div>
-            <div className="bg-gray-50 rounded-lg p-3">
-              <div className="text-gray-500">Location nue</div>
-              <div className="font-semibold">{toFrPct(defaults.residential)} %</div>
-              <div className="text-xs text-gray-400">= BCE + 0,30 pt</div>
-            </div>
-            <div className="bg-gray-50 rounded-lg p-3">
-              <div className="text-gray-500">Local commercial</div>
-              <div className="font-semibold">{toFrPct(defaults.commercial)} %</div>
-              <div className="text-xs text-gray-400">= BCE + 0,60 pt</div>
-            </div>
-            <div className="bg-gray-50 rounded-lg p-3">
-              <div className="text-gray-500">SCPI (crédit)</div>
-              <div className="font-semibold">{toFrPct(defaults.scpi)} %</div>
-              <div className="text-xs text-gray-400">= BCE + 0,50 pt</div>
-            </div>
-            <div className="bg-gray-50 rounded-lg p-3">
-              <div className="text-gray-500">Viager (actualisation)</div>
-              <div className="font-semibold">{toFrPct(defaults.viagerDiscount)} %</div>
-              <div className="text-xs text-gray-400">= BCE + 1,00 pt</div>
-            </div>
-          </div>
-        </div>
-
       <Helmet>
         <title>Les 10 Commandements de l’investisseur – Outils & Sources</title>
         <meta name="description" content="Une page pour tout vérifier avant d’investir : prix/m², DVF, cadastre, taux, fiscalité, loyers, charges. Liens vers les meilleures sources." />
@@ -1334,8 +1191,8 @@ export default function App() {
         </div>
       </div>
     </HelmetProvider>
-  </RatesProvider>
   );
 }
 
+"
 
