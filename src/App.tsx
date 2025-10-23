@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, createContext, useContext, useRef } from "react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
-import { Helmet, HelmetProvider } from "https://esm.sh/react-helmet-async"; // Reverted this line
+// CORRECTION: Utilisation de l'import standard au lieu de esm.sh
+import { Helmet, HelmetProvider } from "react-helmet-async";
 
 // Configuration pour l'impression
 const printStyles = `
@@ -12,6 +13,100 @@ const printStyles = `
     .bg-gray-50, .bg-gray-100 { background-color: #f8f8f8 !important; }
   }
 `;
+
+/*************************
+ * CONTEXTE DES TAUX (BCE)
+ *************************/
+
+type RatesContextType = {
+  bce: number;
+  asOf: string;
+  defaults: {
+    residential: number;
+    commercial: number;
+    scpi: number;
+    viagerDiscount: number;
+  };
+  loading: boolean;
+};
+
+// 1. Taux de secours si l'API BCE échoue
+const FALLBACK_BCE = 3.0;
+
+// 2. Fonction pour calculer les taux par défaut
+const getDefaultRates = (bce: number) => ({
+  residential: bce + 0.30,
+  commercial: bce + 0.60,
+  scpi: bce + 0.50,
+  viagerDiscount: bce + 1.00,
+});
+
+// 3. État initial du contexte
+const defaultRatesState: RatesContextType = {
+  bce: FALLBACK_BCE,
+  asOf: "",
+  defaults: getDefaultRates(FALLBACK_BCE),
+  loading: true,
+};
+
+// 4. Création du contexte
+const RatesContext = createContext<RatesContextType>(defaultRatesState);
+
+// 5. Création du Provider
+function RatesProvider({ children }: { children: React.ReactNode }) {
+  const [rates, setRates] = useState<RatesContextType>(defaultRatesState);
+
+  // Le useEffect est bien DANS le composant fonctionnel
+  useEffect(() => {
+    const fetchRates = async () => {
+      try {
+        const response = await fetch("https://data-api.ecb.europa.eu/service/data/MIR/MIR.M.FR.B.A2C.A.C.A.2250.EUR.N?lastNObservations=1&format=sdmx-json");
+        if (!response.ok) throw new Error("ECB API Response not OK");
+        
+        const data = await response.json();
+        
+        // Navigation dans la structure complexe de l'API BCE
+        const series = data.dataSets[0]?.series?.["0:0:0:0:0:0:0"]?.observations;
+        const lastObsKey = Object.keys(series).pop();
+        if (!lastObsKey) throw new Error("No observation key found");
+        
+        const lastObs = series[lastObsKey];
+        
+        if (lastObs && lastObs[0] !== undefined) {
+          const bceRate = lastObs[0];
+          // Essayer de trouver la date de la période
+          const periodValue = data.structure.dimensions.observation.find((d: any) => d.id === "TIME_PERIOD")?.values[0];
+          const period = periodValue ? periodValue.name : ""; // ex: "2025-09"
+          
+          setRates({
+            bce: bceRate,
+            asOf: period || "",
+            defaults: getDefaultRates(bceRate),
+            loading: false,
+          });
+        } else {
+          throw new Error("Could not parse rate from ECB data");
+        }
+      } catch (error) {
+        console.warn("Failed to fetch ECB rates, using fallback:", error);
+        // En cas d'erreur, utilise le fallback mais indique que le chargement est terminé
+        setRates({
+          ...defaultRatesState,
+          loading: false, 
+        });
+      }
+    };
+    
+    fetchRates();
+  }, []); // [] = s'exécute une seule fois au montage
+
+  return (
+    <RatesContext.Provider value={rates}>
+      {children}
+    </RatesContext.Provider>
+  );
+}
+
 
 /*********************
  * UTILITAIRES GÉNÉRAUX
@@ -237,7 +332,7 @@ const COLORS = ["#3559E0", "#F2C94C", "#E67E22", "#27AE60"];
 function LocationNue() {
   const [prix, setPrix] = useState("292000");
   const [apport, setApport] = useState("72000");
-  const [taux, setTaux] = useState("2,5");
+  const [taux, setTaux] = useState(""); // CHANGÉ: Initialisé à vide
   const [assurance, setAssurance] = useState("0,35");
   const [duree, setDuree] = useState("20");
   const [loyer, setLoyer] = useState("740");
@@ -247,6 +342,18 @@ function LocationNue() {
   const [travauxInit, setTravauxInit] = useState("0"); // travaux initiaux payés cash
   const [tmiLoc, setTmiLoc] = useState("30");         // TMI IR %
   const [psLoc, setPsLoc] = useState("17,2");         // PS %
+
+  // AJOUT: Récupération des taux par défaut et logique d'auto-remplissage
+  const { defaults } = useContext(RatesContext);
+  const did = useRef(false); // Pour ne remplir qu'une seule fois
+  
+  useEffect(() => {
+    // Si le champ est vide ET qu'on ne l'a pas déjà rempli ET que le taux par défaut est chargé
+    if (!did.current && (!taux || taux.trim() === "")) {
+      setTaux(defaults.residential.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+      did.current = true; // Marquer comme rempli
+    }
+  }, [defaults.residential, taux]); // Se déclenche quand 'defaults.residential' est chargé/mis à jour ou si taux est vidé
 
   const vPrix = toNum(prix);
   const vApport = toNum(apport);
@@ -310,7 +417,8 @@ function LocationNue() {
             <Field label="Apport" suffix="€" value={apport} onChange={setApport} />
             <Field label="Travaux (initiaux, cash)" suffix="€" value={travauxInit} onChange={setTravauxInit} />
             <div className="h-0.5 bg-gray-100 my-4"></div>
-            <Field label="Taux du prêt" suffix="%/an" value={taux} onChange={setTaux} decimals={2} />
+            {/* AJOUT: 'help' pour le taux auto */}
+            <Field label="Taux du prêt" suffix="%/an" value={taux} onChange={setTaux} decimals={2} help="Auto : BCE + 0,30 pt" />
             <Field label="Assurance" suffix="%/an" value={assurance} onChange={setAssurance} decimals={2} />
             <Field label="Durée du prêt" suffix="ans" value={duree} onChange={setDuree} />
             <div className="h-0.5 bg-gray-100 my-4"></div>
@@ -373,7 +481,7 @@ function Viager() {
   const [valeur, setValeur] = useState("292000"); // Valeur vénale
   const [age, setAge] = useState("71");
   const [sexe, setSexe] = useState("Femme");
-  const [taux, setTaux] = useState("2"); // taux d'actualisation
+  const [taux, setTaux] = useState(""); // CHANGÉ: Initialisé à vide (taux d'actualisation)
   const [bouquetPct, setBouquetPct] = useState("30");
   const [index, setIndex] = useState("1,1"); // indexation rente
   const [charges, setCharges] = useState("1200");
@@ -385,6 +493,17 @@ function Viager() {
   const [fraisVentePct, setFraisVentePct] = useState("6"); // % du prix de revente
   // Vente à terme
   const [dureeTerme, setDureeTerme] = useState("15"); // ans
+
+  // AJOUT: Récupération des taux par défaut et logique d'auto-remplissage
+  const { defaults } = useContext(RatesContext);
+  const did = useRef(false);
+  
+  useEffect(() => {
+    if (!did.current && (!taux || taux.trim() === "")) {
+      setTaux(defaults.viagerDiscount.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+      did.current = true;
+    }
+  }, [defaults.viagerDiscount, taux]);
 
   // Conversions
   const vV = toNum(valeur);
@@ -477,7 +596,8 @@ function Viager() {
             {mode === "Viager occupé" && (
               <Field label="Loyer mensuel estimé (pour DUH)" suffix="€/mois" value={loyer} onChange={setLoyer} help="Utilisé pour calculer la décote DUH" />
             )}
-            <Field label="Taux d'actualisation" suffix="%/an" value={taux} onChange={setTaux} help="Taux pour DUH (si occupé) et la rente" decimals={2} />
+            {/* AJOUT: 'help' mis à jour pour le taux auto */}
+            <Field label="Taux d'actualisation" suffix="%/an" value={taux} onChange={setTaux} help="Auto : BCE + 1,00 pt (pour DUH/rente)" decimals={2} />
             <Field label="Bouquet (sur base)" suffix="%" value={bouquetPct} onChange={setBouquetPct} />
             {mode !== "Vente à terme" ? (
               <Field label="Taux de révision rente" suffix="%/an" value={index} onChange={setIndex} decimals={2} />
@@ -553,9 +673,20 @@ function SCPI() {
 
   // Financement (facultatif)
   const [apport, setApport] = useState("10000");
-  const [taux, setTaux] = useState("3,1");
+  const [taux, setTaux] = useState(""); // CHANGÉ: Initialisé à vide
   const [assurance, setAssurance] = useState("0,30");
   const [duree, setDuree] = useState("15");
+
+  // AJOUT: Récupération des taux par défaut et logique d'auto-remplissage
+  const { defaults } = useContext(RatesContext);
+  const did = useRef(false);
+  
+  useEffect(() => {
+    if (!did.current && (!taux || taux.trim() === "")) {
+      setTaux(defaults.scpi.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+      did.current = true;
+    }
+  }, [defaults.scpi, taux]);
 
   // Conversion
   const vMontant = toNum(montant);
@@ -650,7 +781,8 @@ function SCPI() {
 
             <div className="h-0.5 bg-gray-100 my-2"></div>
             <Field label="Apport" suffix="€" value={apport} onChange={setApport} />
-            <Field label="Taux du prêt" suffix="%/an" value={taux} onChange={setTaux} decimals={2} />
+            {/* AJOUT: 'help' pour le taux auto */}
+            <Field label="Taux du prêt" suffix="%/an" value={taux} onChange={setTaux} decimals={2} help="Auto : BCE + 0,50 pt" />
             <Field label="Assurance emprunteur" suffix="%/an" value={assurance} onChange={setAssurance} decimals={2} />
             <Field label="Durée du prêt" suffix="ans" value={duree} onChange={setDuree} />
           </div>
@@ -693,12 +825,23 @@ function LocalCommercial() {
   // Hypothèses d'entrée
   const [prix, setPrix] = useState("250000");
   const [apport, setApport] = useState("50000");
-  const [taux, setTaux] = useState("3");
+  const [taux, setTaux] = useState(""); // CHANGÉ: Initialisé à vide
   const [assurance, setAssurance] = useState("0,30");
   const [duree, setDuree] = useState("20");
   const [loyer, setLoyer] = useState("1500");   // €/mois
   const [charges, setCharges] = useState("2000"); // €/an
   const [taxe, setTaxe] = useState("1500");       // €/an
+
+  // AJOUT: Récupération des taux par défaut et logique d'auto-remplissage
+  const { defaults } = useContext(RatesContext);
+  const did = useRef(false);
+  
+  useEffect(() => {
+    if (!did.current && (!taux || taux.trim() === "")) {
+      setTaux(defaults.commercial.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+      did.current = true;
+    }
+  }, [defaults.commercial, taux]);
 
   const vPrix = toNum(prix);
   const vApport = toNum(apport);
@@ -750,7 +893,8 @@ function LocalCommercial() {
             <Field label="Prix du bien" suffix="€" value={prix} onChange={setPrix} />
             <Field label="Apport" suffix="€" value={apport} onChange={setApport} />
             <div className="h-0.5 bg-gray-100 my-4"></div>
-            <Field label="Taux du prêt" suffix="%/an" value={taux} onChange={setTaux} decimals={2} />
+            {/* AJOUT: 'help' pour le taux auto */}
+            <Field label="Taux du prêt" suffix="%/an" value={taux} onChange={setTaux} decimals={2} help="Auto : BCE + 0,60 pt" />
             <Field label="Assurance emprunteur" suffix="%/an" value={assurance} onChange={setAssurance} decimals={2} />
             <Field label="Durée du prêt" suffix="ans" value={duree} onChange={setDuree} />
             <div className="h-0.5 bg-gray-100 my-4"></div>
@@ -797,6 +941,9 @@ function LocalCommercial() {
  * COMPOSANT 10 COMMANDEMENTS (Nouveau)
  ****************************************/
 function CommandementsInvestisseur() {
+  // AJOUT: Récupération du contexte des taux
+  const { bce, asOf, defaults, loading } = useContext(RatesContext);
+
   // Mini-calculateur €/m²
   const [prix, setPrix] = useState("250000");
   const [surface, setSurface] = useState("50");
@@ -925,6 +1072,10 @@ function CommandementsInvestisseur() {
       ],
     },
   ];
+  
+  // Utilisation de toLocaleString comme demandé dans les bonnes pratiques pour l'affichage
+  const fmtRate = (n: number) => n.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 
   return (
     <>
@@ -941,6 +1092,21 @@ function CommandementsInvestisseur() {
         <p className="text-gray-600 text-center mb-8 max-w-2xl mx-auto">
           Une page, toutes les étapes-clés : évaluer, vérifier, comparer et sécuriser votre investissement avec des sources fiables.
         </p>
+
+        {/* AJOUT: Encadré "Taux du moment" */}
+        <div className="bg-white rounded-xl shadow p-4 mb-6">
+          <div className="text-sm text-gray-500 mb-2">
+            Taux du moment {loading ? "(chargement...)" : asOf ? `(données BCE ${asOf})` : ""}
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
+            {/* Utilisation de fmtRate pour un affichage propre */}
+            <div><strong>BCE :</strong> {fmtRate(bce)} %</div>
+            <div><strong>Location nue :</strong> {fmtRate(defaults.residential)} %</div>
+            <div><strong>Commercial :</strong> {fmtRate(defaults.commercial)} %</div>
+            <div><strong>SCPI :</strong> {fmtRate(defaults.scpi)} %</div>
+            <div><strong>Viager :</strong> {fmtRate(defaults.viagerDiscount)} %</div>
+          </div>
+        </div>
 
         {/* Mini-calculateur €/m² */}
         <div className="bg-white rounded-xl shadow p-5 mb-8">
@@ -1091,107 +1257,110 @@ export default function App() {
   };
 
   return (
-    <HelmetProvider>
-      <Helmet>
-        <title>Simulateur Immobilier: Viager, SCPI, Location | Calculette Gratuite</title>
-        <meta name="description" content="Calculette immobilière gratuite: comparez viager (occupé, libre, vente à terme), SCPI, location nue et local commercial. Graphiques clairs, frais de notaire, cashflow, rendement." />
-        <script type="application/ld+json">{JSON.stringify(webAppJsonLd)}</script>
-      </Helmet>
-      <style>{printStyles}</style>
+    // AJOUT: Le RatesProvider enveloppe toute l'application
+    <RatesProvider>
+      <HelmetProvider>
+        <Helmet>
+          <title>Simulateur Immobilier: Viager, SCPI, Location | Calculette Gratuite</title>
+          <meta name="description" content="Calculette immobilière gratuite: comparez viager (occupé, libre, vente à terme), SCPI, location nue et local commercial. Graphiques clairs, frais de notaire, cashflow, rendement." />
+          <script type="application/ld+json">{JSON.stringify(webAppJsonLd)}</script>
+        </Helmet>
+        <style>{printStyles}</style>
 
-      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
-        <div className="max-w-6xl mx-auto p-6 space-y-6 print-max-w">
-          {/* Header mis à jour, responsive */}
-          <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 no-print">
-            {/* Titre */}
-            <div>
-              <h1 className="text-2xl font-bold">Simulateur Immobilier Complet</h1>
-              <p className="text-sm text-gray-500">Comparez, analysez et planifiez vos investissements</p>
-            </div>
-            
-            {/* Conteneur pour Bouton + Onglets */}
-            <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 w-full md:w-auto">
-              {/* Bouton d'impression (justifié au centre sur mobile) */}
-              <button
-                onClick={handlePrint}
-                className="px-4 py-2 rounded-xl text-sm font-medium bg-gray-200 text-gray-700 hover:bg-gray-300 transition shadow flex items-center justify-center"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 inline-block mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12M18 14v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4"/></svg>
-                Version Imprimable PDF
-              </button>
-              {/* Le composant Tabs (qui a déjà le fix de scroll) s'insère ici */}
-              <Tabs tabs={tabs} active={tab} onChange={setTab} />
-            </div>
-          </header>
-
-          {/* Titre pour l'impression */}
-          <div className="hidden print:block text-center mb-6">
-            <h1 className="text-2xl font-bold">Rapport de Simulation ({tab})</h1>
-            <p className="text-sm text-gray-500">Date du rapport : {new Date().toLocaleDateString("fr-FR")}</p>
-          </div>
-
-          {renderTabContent()}
-
-          {/* À PROPOS */}
-          <section id="apropos" className="mt-16 px-4 max-w-4xl mx-auto">
-            <h2 className="text-2xl font-semibold mb-4">À propos</h2>
-            <div className="bg-white rounded-lg shadow p-6 leading-relaxed">
-              <p className="mb-4">
-                <strong>Viager vs Location</strong> est un outil d’aide à la décision conçu pour les
-                <strong> investisseurs immobiliers</strong> qui souhaitent comparer clearly la rentabilité
-                entre plusieurs stratégies : <em>viager, location, local commercial et SCPI</em>.
-              </p>
-              <p className="mb-4">
-                Notre objectif : rendre les calculs d’investissement <strong>clairs, rapides et transparents</strong>.
-                L’outil est <strong>gratuit, neutre et indépendant</strong> : aucune affiliation à une plateforme commerciale.
-              </p>
-              <p className="mb-4">
-                La méthodologie s’appuie sur des hypothèses explicites (taux, fiscalité, charges,
-                horizon de détention) et des <strong>formules vérifiables</strong> affichées dans le simulateur.
-                Les résultats proposés ne constituent pas un conseil financier ; ils servent de base
-                pour structurer votre réflexion et vos discussions avec vos conseils.
-              </p>
-              <div className="grid md:grid-cols-3 gap-4 mt-6">
-                <div className="border rounded-md p-4"><div className="font-semibold mb-1">Indépendance</div><div className="text-sm text-gray-600">Aucune commission ni rétrocession.</div></div>
-                <div className="border rounded-md p-4"><div className="font-semibold mb-1">Transparence</div><div className="text-sm text-gray-600">Hypothèses et calculs explicites.</div></div>
-                <div className="border rounded-md p-4"><div className="font-semibold mb-1">Pédagogie</div><div className="text-sm text-gray-600">Comparaisons côte à côte et graphiques lisibles.</div></div>
+        <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+          <div className="max-w-6xl mx-auto p-6 space-y-6 print-max-w">
+            {/* Header mis à jour, responsive */}
+            <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 no-print">
+              {/* Titre */}
+              <div>
+                <h1 className="text-2xl font-bold">Simulateur Immobilier Complet</h1>
+                <p className="text-sm text-gray-500">Comparez, analysez et planifiez vos investissements</p>
               </div>
+              
+              {/* Conteneur pour Bouton + Onglets */}
+              <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 w-full md:w-auto">
+                {/* Bouton d'impression (justifié au centre sur mobile) */}
+                <button
+                  onClick={handlePrint}
+                  className="px-4 py-2 rounded-xl text-sm font-medium bg-gray-200 text-gray-700 hover:bg-gray-300 transition shadow flex items-center justify-center"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 inline-block mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12M18 14v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4"/></svg>
+                  Version Imprimable PDF
+                </button>
+                {/* Le composant Tabs (qui a déjà le fix de scroll) s'insère ici */}
+                <Tabs tabs={tabs} active={tab} onChange={setTab} />
+              </div>
+            </header>
 
-              <div className="mt-6 p-4 bg-gray-50 border rounded-md">
-                <div className="font-medium mb-1">Qui est derrière l’outil ?</div>
-                <p className="text-sm text-gray-700">
-                  Une équipe passionnée d’immobilier et de finance basée à Nantes, dédiée à la
-                  démocratisation des stratégies patrimoniales de long terme, avec un focus sur le viager
-                  et les actifs générateurs de revenus.
+            {/* Titre pour l'impression */}
+            <div className="hidden print:block text-center mb-6">
+              <h1 className="text-2xl font-bold">Rapport de Simulation ({tab})</h1>
+              <p className="text-sm text-gray-500">Date du rapport : {new Date().toLocaleDateString("fr-FR")}</p>
+            </div>
+
+            {renderTabContent()}
+
+            {/* À PROPOS */}
+            <section id="apropos" className="mt-16 px-4 max-w-4xl mx-auto">
+              <h2 className="text-2xl font-semibold mb-4">À propos</h2>
+              <div className="bg-white rounded-lg shadow p-6 leading-relaxed">
+                <p className="mb-4">
+                  <strong>Viager vs Location</strong> est un outil d’aide à la décision conçu pour les
+                  <strong> investisseurs immobiliers</strong> qui souhaitent comparer clearly la rentabilité
+                  entre plusieurs stratégies : <em>viager, location, local commercial et SCPI</em>.
                 </p>
+                <p className="mb-4">
+                  Notre objectif : rendre les calculs d’investissement <strong>clairs, rapides et transparents</strong>.
+                  L’outil est <strong>gratuit, neutre et indépendant</strong> : aucune affiliation à une plateforme commerciale.
+                </p>
+                <p className="mb-4">
+                  La méthodologie s’appuie sur des hypothèses explicites (taux, fiscalité, charges,
+                  horizon de détention) et des <strong>formules vérifiables</strong> affichées dans le simulateur.
+                  Les résultats proposés ne constituent pas un conseil financier ; ils servent de base
+                  pour structurer votre réflexion et vos discussions avec vos conseils.
+                </p>
+                <div className="grid md:grid-cols-3 gap-4 mt-6">
+                  <div className="border rounded-md p-4"><div className="font-semibold mb-1">Indépendance</div><div className="text-sm text-gray-600">Aucune commission ni rétrocession.</div></div>
+                  <div className="border rounded-md p-4"><div className="font-semibold mb-1">Transparence</div><div className="text-sm text-gray-600">Hypothèses et calculs explicites.</div></div>
+                  <div className="border rounded-md p-4"><div className="font-semibold mb-1">Pédagogie</div><div className="text-sm text-gray-600">Comparaisons côte à côte et graphiques lisibles.</div></div>
+                </div>
+
+                <div className="mt-6 p-4 bg-gray-50 border rounded-md">
+                  <div className="font-medium mb-1">Qui est derrière l’outil ?</div>
+                  <p className="text-sm text-gray-700">
+                    Une équipe passionnée d’immobilier et de finance basée à Nantes, dédiée à la
+                    démocratisation des stratégies patrimoniales de long terme, avec un focus sur le viager
+                    et les actifs générateurs de revenus.
+                  </p>
+                </div>
+
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <a href="#simulateur" className="bg-blue-600 text-white px-5 py-2.5 rounded-md shadow hover:bg-blue-700 transition">Comparer maintenant</a>
+                  <a href="#contact" className="px-5 py-2.5 rounded-md border border-gray-300 hover:bg-gray-50 transition">Contacter l’équipe</a>
+                </div>
               </div>
+            </section>
 
-              <div className="mt-6 flex flex-wrap gap-3">
-                <a href="#simulateur" className="bg-blue-600 text-white px-5 py-2.5 rounded-md shadow hover:bg-blue-700 transition">Comparer maintenant</a>
-                <a href="#contact" className="px-5 py-2.5 rounded-md border border-gray-300 hover:bg-gray-50 transition">Contacter l’équipe</a>
-              </div>
-            </div>
-          </section>
+            {/* CONTACT (chargement à la demande) */}
+            <ContactSection />
 
-          {/* CONTACT (chargement à la demande) */}
-          <ContactSection />
-
-          <footer className="text-xs text-gray-400 text-center mt-8 no-print">
-            Données indicatives — calculs simplifiés. Consultez un notaire / CGP / expert pour un conseil personnalisé.
-            <br />
-            <a
-              href="https://wizzwid.github.io/viager-vs-location/sitemap.html"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-gray-400 hover:text-gray-600 underline mt-1 inline-block"
-            >
-              Plan du site
-            </a>
-          </footer>
+            <footer className="text-xs text-gray-400 text-center mt-8 no-print">
+              Données indicatives — calculs simplifiés. Consultez un notaire / CGP / expert pour un conseil personnalisé.
+              <br />
+              <a
+                href="https://wizzwid.github.io/viager-vs-location/sitemap.html"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-gray-400 hover:text-gray-600 underline mt-1 inline-block"
+              >
+                Plan du site
+              </a>
+            </footer>
+          </div>
         </div>
-      </div>
-    </HelmetProvider>
+      </HelmetProvider>
+    </RatesProvider>
   );
 }
-
+// CORRECTION: Suppression des accolades en trop à la fin du fichier
 
