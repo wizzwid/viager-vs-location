@@ -4,86 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <!-- ====== SEO de base ====== -->
-    <title>Calculette Immo – Simulation Viager, Location, SCPI & Local commercial</title>
-    <meta name="description" content="Calculette Immo : le calculateur immobilier qui compare viager, location, SCPI et local commercial. Entrez vos hypothèses et obtenez la rentabilité nette, cashflow et TRI." />
-    <link rel="canonical" href="https://wizzwid.github.io/viager-vs-location/" />
-    <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
-
-    <!-- ====== Open Graph / Twitter (partages + CTR) ====== -->
-    <meta property="og:type" content="website" />
-    <meta property="og:locale" content="fr_FR" />
-    <meta property="og:site_name" content="Calculette Immo" />
-    <meta property="og:title" content="Calculette Immo – Comparez Viager, Location, SCPI" />
-    <meta property="og:description" content="Le calculateur immobilier de référence pour comparer viager, location, SCPI et local commercial." />
-    <meta property="og:url" content="https://wizzwid.github.io/viager-vs-location/" />
-    <meta property="og:image" content="https://wizzwid.github.io/viager-vs-location/og-image.jpg" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Calculette Immo – Comparez Viager, Location, SCPI" />
-    <meta name="twitter:description" content="Entrez vos données et obtenez rentabilité, cashflow et TRI en 1 clic." />
-    <meta name="twitter:image" content="https://wizzwid.github.io/viager-vs-location/og-image.jpg" />
-
-    <!-- (facultatif) Vérification Search Console : remplace le content par ta valeur -->
-    <!-- <meta name="google-site-verification" content="_________TA_CLEF_VERIF_________"> -->
-
-    <!-- ====== PWA / Manifest / Icônes ====== -->
     <link rel="manifest" href="/viager-vs-location/manifest.json" />
     <link rel="icon" href="/viager-vs-location/icons/favicon-32.png" sizes="32x32" />
     <link rel="icon" href="/viager-vs-location/icons/favicon-192.png" sizes="192x192" />
     <link rel="apple-touch-icon" href="/viager-vs-location/icons/apple-touch-icon.png" />
     <meta name="theme-color" content="#0b5cff" />
 
-    <!-- ====== Performance hints ====== -->
-    <link rel="dns-prefetch" href="https://www.googletagmanager.com" />    
+    <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
 
-    <!-- ====== Données structurées (Website + SoftwareApplication + FAQ) ====== -->
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@graph": [
-        {
-          "@type": "WebSite",
-          "name": "Calculette Immo",
-          "url": "https://wizzwid.github.io/viager-vs-location/",
-          "potentialAction": {
-            "@type": "SearchAction",
-            "target": "https://wizzwid.github.io/viager-vs-location/#simulateur?query={search_term_string}",
-            "query-input": "required name=search_term_string"
-          }
-        },
-        {
-          "@type": "SoftwareApplication",
-          "name": "Calculette Immo",
-          "applicationCategory": "FinanceApplication",
-          "operatingSystem": "Web",
-          "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" },
-          "url": "https://wizzwid.github.io/viager-vs-location/"
-        },
-        {
-          "@type": "FAQPage",
-          "mainEntity": [
-            {
-              "@type": "Question",
-              "name": "Comment comparer viager, location, SCPI et local commercial ?",
-              "acceptedAnswer": { "@type": "Answer", "text": "Renseignez prix, apport, loyers/rente, charges et fiscalité. La calculette calcule rentabilité nette, cashflow et TRI." }
-            },
-            {
-              "@type": "Question",
-              "name": "Les résultats tiennent-ils compte de la fiscalité ?",
-              "acceptedAnswer": { "@type": "Answer", "text": "Oui, vous pouvez paramétrer les taux d'imposition et prélèvements sociaux. Les calculs s’adaptent automatiquement." }
-            },
-            {
-              "@type": "Question",
-              "name": "Puis-je enregistrer ou partager une simulation ?",
-              "acceptedAnswer": { "@type": "Answer", "text": "Oui, le lien contient vos paramètres. Vous pouvez l’ajouter aux favoris ou le partager." }
-            }
-          ]
-        }
-      ]
-    }
-    </script>
-
-    <!-- ====== Consentement & Google Analytics 4 (avec anonymisation + SPA) ====== -->
     <style>
       /* Bandeau de consentement minimal */
       #cookie-banner {
@@ -173,7 +101,6 @@
   </head>
 
   <body>
-    <!-- Bandeau de consentement -->
     <div id="cookie-banner" role="dialog" aria-live="polite">
       Nous utilisons des cookies de mesure d’audience (Google Analytics) pour améliorer le site.
       <div class="btns">
@@ -182,13 +109,10 @@
       </div>
     </div>
 
-    <!-- ====== App ====== -->
     <div id="root"></div>
 
-    <!-- IMPORTANT pour GitHub Pages + Vite -->
     <script type="module" src="/src/main.tsx"></script>
 
-    <!-- ====== Définir le calculateur comme écran par défaut (si hash manquant) ====== -->
     <script>
       (function ensureDefaultRoute() {
         // Si aucun hash, force l’arrivée sur le simulateur (ex: #/simulateur ou #simulateur selon ton router)
