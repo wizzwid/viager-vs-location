@@ -1,6 +1,7 @@
+```tsx
 import React, { useState, useEffect, useMemo } from "react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
-import { Helmet, HelmetProvider } from "https://esm.sh/react-helmet-async"; // Reverted this line
+import { Helmet, HelmetProvider } from "react-helmet-async"; // Corrigé (local import)
 
 // Configuration pour l'impression
 const printStyles = `
@@ -301,7 +302,7 @@ function LocationNue() {
       <Helmet>
         <title>Calculette Rendement Location Nue – Cashflow, TMI, Frais de Notaire</title>
         <meta name="description" content="Intégrez prêt, assurance, charges, taxe foncière, travaux, TMI/PS pour un rendement net réaliste." />
-        <link rel="canonical" href="https://<your-domain-here>/#/location-nue" />
+        <link rel="canonical" href="https://wizzwid.github.io/viager-vs-location/#/location-nue" />
       </Helmet>
       <div className="grid lg:grid-cols-2 gap-6">
         <Section title="Paramètres – Location nue">
@@ -459,7 +460,7 @@ function Viager() {
       <Helmet>
         <title>Simulateur Viager Occupé/Libre & Vente à Terme – Bouquet, Rente, DUH</title>
         <meta name="description" content="Calculez la décote DUH, bouquet, rente indexée, horizon (espérance de vie), revente à terme et rendement annualisé." />
-        <link rel="canonical" href="https://<your-domain-here>/#/viager" />
+        <link rel="canonical" href="https://wizzwid.github.io/viager-vs-location/#/viager" />
       </Helmet>
       <div className="grid lg:grid-cols-2 gap-6">
         <Section title="Paramètres – Viager">
@@ -618,7 +619,7 @@ function SCPI() {
       <Helmet>
         <title>Simulateur SCPI (pleine & nue-propriété) – Rendement & cashflow</title>
         <meta name="description" content="Calculette SCPI: pleine propriété et nue-propriété, frais de souscription, financement, cashflow après impôts, rendement annualisé." />
-        <link rel="canonical" href="https://<your-domain-here>/#/scpi" />
+        <link rel="canonical" href="https://wizzwid.github.io/viager-vs-location/#/scpi" />
       </Helmet>
       <div className="grid lg:grid-cols-2 gap-6">
         <Section title="Paramètres – SCPI">
@@ -742,7 +743,7 @@ function LocalCommercial() {
       <Helmet>
         <title>Simulateur Local Commercial – Rendement Brut, Net & Cashflow</title>
         <meta name="description" content="Estimez la rentabilité de votre investissement en local commercial. Calculez le rendement brut, net (hors dette) et le cashflow mensuel." />
-        <link rel="canonical" href="https://<your-domain-here>/#/local-commercial" />
+        <link rel="canonical" href="https://wizzwid.github.io/viager-vs-location/#/local-commercial" />
       </Helmet>
       <div className="grid lg:grid-cols-2 gap-6">
         <Section title="Paramètres – Local commercial">
@@ -931,13 +932,13 @@ function CommandementsInvestisseur() {
       <Helmet>
         <title>Les 10 Commandements de l’investisseur – Outils & Sources</title>
         <meta name="description" content="Une page pour tout vérifier avant d’investir : prix/m², DVF, cadastre, taux, fiscalité, loyers, charges. Liens vers les meilleures sources." />
-        <link rel="canonical" href="https://<your-domain-here>/#/commandements" />
+        <link rel="canonical" href="https://wizzwid.github.io/viager-vs-location/#/commandements" />
         <script type="application/ld+json">{JSON.stringify(faqJsonLd)}</script>
       </Helmet>
       <div className="max-w-6xl mx-auto p-0">
-        <h1 className="text-3xl md:text-4xl font-bold text-center mb-2">
+        <h2 className="text-3xl md:text-4xl font-bold text-center mb-2">
           Les 10 commandements de l’investisseur avisé
-        </h1>
+        </h2>
         <p className="text-gray-600 text-center mb-8 max-w-2xl mx-auto">
           Une page, toutes les étapes-clés : évaluer, vérifier, comparer et sécuriser votre investissement avec des sources fiables.
         </p>
@@ -1084,7 +1085,7 @@ export default function App() {
     "@context":"https://schema.org",
     "@type":"WebApplication",
     "name":"Simulateur immobilier – Viager, SCPI, Location",
-    "url":"https://<your-domain-here>/",
+    "url":"https://wizzwid.github.io/viager-vs-location/",
     "applicationCategory":"FinanceApplication",
     "operatingSystem":"Any",
     "offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"}
@@ -1093,7 +1094,7 @@ export default function App() {
   return (
     <HelmetProvider>
       <Helmet>
-        <title>Simulateur Immobilier: Viager, SCPI, Location | Calculette Gratuite</title>
+        <title>Calculette Immo — Simulateur immobilier (achat, location, SCPI, viager)</title>
         <meta name="description" content="Calculette immobilière gratuite: comparez viager (occupé, libre, vente à terme), SCPI, location nue et local commercial. Graphiques clairs, frais de notaire, cashflow, rendement." />
         <script type="application/ld+json">{JSON.stringify(webAppJsonLd)}</script>
       </Helmet>
@@ -1103,7 +1104,7 @@ export default function App() {
         <div className="max-w-6xl mx-auto p-6 space-y-6 print-max-w">
           {/* Header mis à jour, responsive */}
           <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 no-print">
-            {/* Titre */}
+            {/* Titre (Le H1 global) */}
             <div>
               <h1 className="text-2xl font-bold">Simulateur Immobilier Complet</h1>
               <p className="text-sm text-gray-500">Comparez, analysez et planifiez vos investissements</p>
@@ -1124,9 +1125,9 @@ export default function App() {
             </div>
           </header>
 
-          {/* Titre pour l'impression */}
+          {/* Titre pour l'impression (H2) */}
           <div className="hidden print:block text-center mb-6">
-            <h1 className="text-2xl font-bold">Rapport de Simulation ({tab})</h1>
+            <h2 className="text-2xl font-bold">Rapport de Simulation ({tab})</h2>
             <p className="text-sm text-gray-500">Date du rapport : {new Date().toLocaleDateString("fr-FR")}</p>
           </div>
 
@@ -1137,7 +1138,7 @@ export default function App() {
             <h2 className="text-2xl font-semibold mb-4">À propos</h2>
             <div className="bg-white rounded-lg shadow p-6 leading-relaxed">
               <p className="mb-4">
-                <strong>Viager vs Location</strong> est un outil d’aide à la décision conçu pour les
+                <strong>Calculette Immo</strong> est un outil d’aide à la décision conçu pour les
                 <strong> investisseurs immobiliers</strong> qui souhaitent comparer clearly la rentabilité
                 entre plusieurs stratégies : <em>viager, location, local commercial et SCPI</em>.
               </p>
