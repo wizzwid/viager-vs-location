@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
-import { Helmet, HelmetProvider } from "react-helmet-async"; // Corrigé (local import)
+import { Helmet, HelmetProvider } from "https://esm.sh/react-helmet-async"; // Reverted this line
 
 // Configuration pour l'impression
 const printStyles = `
@@ -1093,18 +1093,17 @@ export default function App() {
   return (
     <HelmetProvider>
       <Helmet>
-        <title>Calculette Immo — Simulateur immobilier (achat, location, SCPI, viager)</title>
+        <title>Simulateur Immobilier: Viager, SCPI, Location | Calculette Gratuite</title>
         <meta name="description" content="Calculette immobilière gratuite: comparez viager (occupé, libre, vente à terme), SCPI, location nue et local commercial. Graphiques clairs, frais de notaire, cashflow, rendement." />
         <script type="application/ld+json">{JSON.stringify(webAppJsonLd)}</script>
-        {/* CORRECTION : La balise <style> est maintenant à l'intérieur de <Helmet> */}
-        <style>{printStyles}</style>
       </Helmet>
-      
+      <style>{printStyles}</style>
+
       <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
         <div className="max-w-6xl mx-auto p-6 space-y-6 print-max-w">
           {/* Header mis à jour, responsive */}
           <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 no-print">
-            {/* Titre (Le H1 global) */}
+            {/* Titre */}
             <div>
               <h1 className="text-2xl font-bold">Simulateur Immobilier Complet</h1>
               <p className="text-sm text-gray-500">Comparez, analysez et planifiez vos investissements</p>
@@ -1125,7 +1124,7 @@ export default function App() {
             </div>
           </header>
 
-          {/* Titre pour l'impression (H2) */}
+          {/* Titre pour l'impression */}
           <div className="hidden print:block text-center mb-6">
             <h2 className="text-2xl font-bold">Rapport de Simulation ({tab})</h2>
             <p className="text-sm text-gray-500">Date du rapport : {new Date().toLocaleDateString("fr-FR")}</p>
@@ -1138,7 +1137,7 @@ export default function App() {
             <h2 className="text-2xl font-semibold mb-4">À propos</h2>
             <div className="bg-white rounded-lg shadow p-6 leading-relaxed">
               <p className="mb-4">
-                <strong>Calculette Immo</strong> est un outil d’aide à la décision conçu pour les
+                <strong>Viager vs Location</strong> est un outil d’aide à la décision conçu pour les
                 <strong> investisseurs immobiliers</strong> qui souhaitent comparer clearly la rentabilité
                 entre plusieurs stratégies : <em>viager, location, local commercial et SCPI</em>.
               </p>
