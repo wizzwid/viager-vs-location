@@ -1095,6 +1095,7 @@ export default function App() {
       <Helmet>
         <title>Simulateur Immobilier: Viager, SCPI, Location | Calculette Gratuite</title>
         <meta name="description" content="Calculette immobilière gratuite: comparez viager (occupé, libre, vente à terme), SCPI, location nue et local commercial. Graphiques clairs, frais de notaire, cashflow, rendement." />
+        <link rel="canonical" href="https://wizzwid.github.io/viager-vs-location/" />
         <script type="application/ld+json">{JSON.stringify(webAppJsonLd)}</script>
       </Helmet>
       <style>{printStyles}</style>
@@ -1193,3 +1194,4 @@ export default function App() {
     </HelmetProvider>
   );
 }
+
