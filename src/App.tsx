@@ -1,3 +1,5 @@
+Voici le code complet du fichier `App-13.tsx` avec la correction appliquée (la balise `<style>` a été déplacée à l'intérieur du composant `<Helmet>` dans la fonction `App`).
+
 ```tsx
 import React, { useState, useEffect, useMemo } from "react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
@@ -1097,9 +1099,10 @@ export default function App() {
         <title>Calculette Immo — Simulateur immobilier (achat, location, SCPI, viager)</title>
         <meta name="description" content="Calculette immobilière gratuite: comparez viager (occupé, libre, vente à terme), SCPI, location nue et local commercial. Graphiques clairs, frais de notaire, cashflow, rendement." />
         <script type="application/ld+json">{JSON.stringify(webAppJsonLd)}</script>
+        {/* CORRECTION : La balise <style> est maintenant à l'intérieur de <Helmet> */}
+        <style>{printStyles}</style>
       </Helmet>
-      <style>{printStyles}</style>
-
+      
       <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
         <div className="max-w-6xl mx-auto p-6 space-y-6 print-max-w">
           {/* Header mis à jour, responsive */}
