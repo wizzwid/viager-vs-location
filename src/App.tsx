@@ -1180,7 +1180,7 @@ export default function App() {
             Données indicatives — calculs simplifiés. Consultez un notaire / CGP / expert pour un conseil personnalisé.
             <br />
             <a
-              href="https://wizzwid.github.io/viager-vs-location/sitemap.html"
+              href="https://wizzwid.github.io/viager-vs-location/sitemap.xml"
               target="_blank"
               rel="noopener noreferrer"
               className="text-gray-400 hover:text-gray-600 underline mt-1 inline-block"
