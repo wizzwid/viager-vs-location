@@ -1,6 +1,3 @@
-Voici le code complet du fichier `App-13.tsx` avec la correction appliquée (la balise `<style>` a été déplacée à l'intérieur du composant `<Helmet>` dans la fonction `App`).
-
-```tsx
 import React, { useState, useEffect, useMemo } from "react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import { Helmet, HelmetProvider } from "react-helmet-async"; // Corrigé (local import)
