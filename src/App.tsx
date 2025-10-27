@@ -1402,7 +1402,7 @@ function ContactSection() {
  * APP PRINCIPALE
  *********************/
 export default function App() {
-  const [tab, setTab] = useState("Location nue"); // default
+  const [tab, setTab] = useState("Crédit immobilier"); // default
 
   // This useEffect is now for side-effects other than title, if any.
   // Title management is handled by Helmet in each component.
@@ -1431,7 +1431,7 @@ export default function App() {
     }
   };
   
-  const tabs = ["Location nue", "Viager", "SCPI", "Local commercial", "Crédit immobilier", "10 Commandements"];
+  const tabs = ["Crédit immobilier", "Location nue", "Viager", "SCPI", "Local commercial", "10 Commandements"];
 
   const webAppJsonLd = {
     "@context":"https://schema.org",
